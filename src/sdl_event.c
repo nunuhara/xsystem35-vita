@@ -43,12 +43,22 @@ static void sdl_getEvent(void);
 static void keyEventProsess(SDL_KeyboardEvent *e, boolean bool);
 static int  check_button(void);
 
-
 /* pointer の状態 */
-static int mousex, mousey, mouseb;
+int mousex, mousey, mouseb;
 boolean RawKeyInfo[256];
 /* SDL Joystick */
 static int joyinfo=0;
+
+#ifdef VITA
+#define VITA_TOUCH_WIDTH ((400.0 / 544.0)*960.0) // width of touchscreen in logical pixels
+#define JOYSTICK_DEAD_ZONE 8000
+#define JOYSTICK_SPEED 2
+extern void va_alarm_handler();
+static int joydir_x = 0;
+static int joydir_y = 0;
+SceUInt64 joy_time = 0;
+boolean hide_cursor = TRUE;
+#endif
 
 static int mouse_to_rawkey(int button) {
 	switch(button) {
@@ -83,6 +93,28 @@ static void send_agsevent(int type, int code) {
 	agse.d2 = mousey;
 	agse.d3 = code;
 	nact->ags.eventcb(&agse);
+}
+
+static void mouse_down(Uint8 button)
+{
+	mouseb |= (1 << button);
+	RawKeyInfo[mouse_to_rawkey(button)] = TRUE;
+	send_agsevent(AGSEVENT_BUTTON_PRESS, mouse_to_agsevent(button));
+#if 0
+	if (button == 2) {
+		keywait_flag=TRUE;
+	}
+#endif
+}
+
+static boolean mouse_up(Uint8 button, boolean *m2b)
+{
+	mouseb &= (0xffffffff ^ (1 << button));
+	RawKeyInfo[mouse_to_rawkey(button)] = FALSE;
+	send_agsevent(AGSEVENT_BUTTON_RELEASE, mouse_to_agsevent(button));
+	if (button == 2) {
+		*m2b = TRUE;
+	}
 }
 
 /* Event処理 */
@@ -142,53 +174,101 @@ static void sdl_getEvent(void) {
 			send_agsevent(AGSEVENT_MOUSE_MOTION, 0);
 			break;
 		case SDL_MOUSEBUTTONDOWN:
-			mouseb |= (1 << e.button.button);
-			RawKeyInfo[mouse_to_rawkey(e.button.button)] = TRUE;
-			send_agsevent(AGSEVENT_BUTTON_PRESS, mouse_to_agsevent(e.button.button));
-#if 0
-			if (e.button.button == 2) {
-				keywait_flag=TRUE;
-			}
-#endif
+			mouse_down(e.button.button);
 			break;
 		case SDL_MOUSEBUTTONUP:
-			mouseb &= (0xffffffff ^ (1 << e.button.button));
-			RawKeyInfo[mouse_to_rawkey(e.button.button)] = FALSE;
-			send_agsevent(AGSEVENT_BUTTON_RELEASE, mouse_to_agsevent(e.button.button));
-			if (e.button.button == 2) {
-				m2b = TRUE;
-			}
+			mouse_up(e.button.button, &m2b);
 			break;
 
 		case SDL_FINGERDOWN:
+			if (e.tfinger.touchId != 0)
+				break;
 			if (SDL_GetNumTouchFingers(SDL_GetTouchDevice(0)) >= 2) {
-				mouseb &= ~(1 << SDL_BUTTON_LEFT);
-				mouseb |= 1 << SDL_BUTTON_RIGHT;
-				RawKeyInfo[mouse_to_rawkey(SDL_BUTTON_LEFT)] = FALSE;
-				RawKeyInfo[mouse_to_rawkey(SDL_BUTTON_RIGHT)] = TRUE;
+				mouse_up(SDL_BUTTON_LEFT, &m2b);
+				mouse_down(SDL_BUTTON_RIGHT);
 			} else {
-				mouseb |= 1 << SDL_BUTTON_LEFT;
-				RawKeyInfo[mouse_to_rawkey(SDL_BUTTON_LEFT)] = TRUE;
+#ifdef VITA
+				mousex = e.tfinger.x * VITA_TOUCH_WIDTH;
+#else
 				mousex = e.tfinger.x * view_w;
+#endif // VITA
 				mousey = e.tfinger.y * view_h;
+				mouse_down(SDL_BUTTON_LEFT);
 			}
 			break;
 
 		case SDL_FINGERUP:
+			if (e.tfinger.touchId != 0)
+				break;
 			if (SDL_GetNumTouchFingers(SDL_GetTouchDevice(0)) == 0) {
-				mouseb &= ~(1 << SDL_BUTTON_LEFT | 1 << SDL_BUTTON_RIGHT);
-				RawKeyInfo[mouse_to_rawkey(SDL_BUTTON_LEFT)] = FALSE;
-				RawKeyInfo[mouse_to_rawkey(SDL_BUTTON_RIGHT)] = FALSE;
+#ifdef VITA
+				mousex = e.tfinger.x * VITA_TOUCH_WIDTH;
+#else
 				mousex = e.tfinger.x * view_w;
+#endif // VITA
 				mousey = e.tfinger.y * view_h;
+				mouse_up(SDL_BUTTON_LEFT, &m2b);
+				mouse_up(SDL_BUTTON_RIGHT, &m2b);
 			}
 			break;
 
 		case SDL_FINGERMOTION:
+			if (e.tfinger.touchId != 0)
+				break;
+#ifdef VITA
+			mousex = e.tfinger.x * VITA_TOUCH_WIDTH;
+#else
 			mousex = e.tfinger.x * view_w;
+#endif // VITA
 			mousey = e.tfinger.y * view_h;
+			send_agsevent(AGSEVENT_MOUSE_MOTION, 0);
 			break;
 
+#ifdef VITA
+		case SDL_JOYAXISMOTION:
+			if (e.jaxis.axis == 0) {
+				// Left of dead zone
+				if (e.jaxis.value < -JOYSTICK_DEAD_ZONE)
+					joydir_x = -1;
+				else if (e.jaxis.value > JOYSTICK_DEAD_ZONE)
+					joydir_x = 1;
+				else
+					joydir_x = 0;
+			} else if (e.jaxis.axis == 1) {
+				if (e.jaxis.value < -JOYSTICK_DEAD_ZONE)
+					joydir_y = -1;
+				else if (e.jaxis.value > JOYSTICK_DEAD_ZONE)
+					joydir_y = 1;
+				else
+					joydir_y = 0;
+			}
+			break;
+		case SDL_JOYBUTTONDOWN:
+			NOTICE("BUTTON: %d\n", e.jbutton.button);
+			switch (e.jbutton.button) {
+			case 1: mouse_down(SDL_BUTTON_RIGHT); break; // Circle
+			case 2: mouse_down(SDL_BUTTON_LEFT);  break; // X
+			// TODO: if possible, use D-pad for menus instead of mouse
+			case 6: joydir_y =  1;                break; // Down
+			case 7: joydir_x = -1;                break; // Left
+			case 8: joydir_y = -1;                break; // Up
+			case 9: joydir_x =  1;                break; // Right
+			default:                              break; // Ignore others
+			}
+			break;
+		case SDL_JOYBUTTONUP:
+			switch (e.jbutton.button) {
+			case 1: mouse_up(SDL_BUTTON_RIGHT, &m2b); break; // Circle
+			case 2: mouse_up(SDL_BUTTON_LEFT, &m2b);  break; // X
+			case 6: case 8: joydir_y = 0;             break; // Down/Up
+			case 7: case 9: joydir_x = 0;             break; // Down/Up
+			default:                                  break; // Ignore others
+			}
+			break;
+		case SDL_USEREVENT:
+			va_alarm_handler();
+			break;
+#else
 #if HAVE_SDLJOY
 		case SDL_JOYAXISMOTION:
 			if (abs(e.jaxis.value) < 0x4000) {
@@ -216,12 +296,27 @@ static void sdl_getEvent(void) {
 				}
 			}
 			break;
-#endif
+#endif // HAVE_SDLJOY
+#endif // VITA
 		default:
 			printf("ev %x\n", e.type);
 			break;
 		}
 	}
+#ifdef VITA
+	if (joydir_x || joydir_y) {
+		joy_time = sceKernelGetProcessTimeWide();
+		// TODO: variable speed
+		mousex = max(0, min(view_w-1, mousex + joydir_x * JOYSTICK_SPEED));
+		mousey = max(0, min(view_h-1, mousey + joydir_y * JOYSTICK_SPEED));
+		send_agsevent(AGSEVENT_MOUSE_MOTION, 0);
+		hide_cursor = FALSE;
+		sdl_dirty = TRUE;
+	} else if (!hide_cursor && sceKernelGetProcessTimeWide() - joy_time > 750000) {
+		hide_cursor = TRUE;
+		sdl_dirty = TRUE;
+	}
+#endif
 	if (had_input) {
 		cmd_count_of_prev_input = nact->cmd_count;
 	} else if (nact->cmd_count != cmd_count_of_prev_input) {

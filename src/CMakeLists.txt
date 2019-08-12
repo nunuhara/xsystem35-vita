@@ -76,6 +76,41 @@ if (EMSCRIPTEN)
 	"SHELL:-s EXPORTED_FUNCTIONS=\"['_main','_ags_setAntialiasedStringMode', '_ald_getdata', '_ald_freedata', '_va_alarm_handler']\""
 	"SHELL:-s EXTRA_EXPORTED_RUNTIME_METHODS=\"['getValue','getMemory','addRunDependency','removeRunDependency']\"")
 
+elseif (VITA)
+  target_sources(xsystem35 PRIVATE vita_port.c)
+  target_compile_definitions(xsystem35 PRIVATE
+	VITA=1
+	VITA_TITLEID="${VITA_TITLEID}"
+	)
+  target_link_libraries(xsystem35
+	debugnet
+	freetype
+	SDL2_mixer
+	SDL2
+	vita2d
+	mpg123
+	vorbisfile
+	vorbis
+	ogg
+	mikmod
+	FLAC
+	png
+	z
+	SceLibKernel_stub
+	SceSysmem_stub
+	SceDisplay_stub
+	SceCtrl_stub
+	SceAudio_stub
+	SceNetCtl_stub
+	SceNet_stub
+	SceSysmodule_stub
+	SceGxm_stub
+	SceCommonDialog_stub
+	SceTouch_stub
+	SceHid_stub
+	m
+	c
+	)
 else()  # non-emscripten
   target_link_libraries(xsystem35 PRIVATE m ZLIB::ZLIB)
   if (X11_FOUND)

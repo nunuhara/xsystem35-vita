@@ -1,6 +1,29 @@
 cmake_minimum_required(VERSION 3.13)
 
+if (VITA)
+  if (NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    if (DEFINED ENV{VITASDK})
+	  set(VITASDK "$ENV{VITASDK}")
+      set(CMAKE_TOOLCHAIN_FILE "${VITASDK}/share/vita.toolchain.cmake" CACHE PATH "toolchain file")
+    else()
+      message(FATAL ERROR "Please define VITASDK to point to your SDK path!")
+    endif()
+  endif()
+endif()
+
 project(xsystem35 LANGUAGES C)
+
+if (VITA)
+  include("${VITASDK}/share/vita.cmake" REQUIRED)
+  include_directories("${VITASDK}/arm-vita-eabi/include/SDL2")
+  include_directories("${VITASDK}/arm-vita-eabi/include/freetype2")
+  include_directories(vita)
+  set(VITA_APP_NAME "xsystem35")
+  set(VITA_TITLEID "NNHR00001")
+  set(VITA_VERSION "01.00")
+  set(VITA_MKSFOEX_FLAGS "${VITA_MKSFOEX_FLAGS} -d PARENTAL_LEVEL=1")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -include vita_port.h")
+endif()
 
 include(CheckFunctionExists)
 include(CheckIncludeFile)
@@ -35,6 +58,10 @@ endif()
 
 if (EMSCRIPTEN)
   set(SDL2_FOUND 1)
+  set(FREETYPE_FOUND 1)
+elseif (VITA)
+  set(SDL2_FOUND 1)
+  set(SDL2MIXER_FOUND 1)
   set(FREETYPE_FOUND 1)
 else()
   include(TestBigEndian)
@@ -89,6 +116,7 @@ elseif (GTK2_FOUND)
 else()
   set(SRC_MENU menu_null.c)
 endif()
+# TODO: Vita menu
 
 # Graphics
 
@@ -146,6 +174,10 @@ set(CDROM_DEVICE "/dev/cdrom" CACHE STRING "CDROM Device Name")
 if (EMSCRIPTEN)
   list(APPEND SRC_MIDI midi.emscripten.c)
   list(APPEND SUMMARY_MIDI "Emscripten")
+elseif (VITA)
+  list(APPEND SRC_MIDI midi.sdlmixer.c)
+  list(APPEND SUMMARY_MIDI "SDL_mixer")
+  set(ENABLE_MIDI_SDLMIXER 1)
 else()
   list(APPEND SRC_MIDI midi.rawmidi.c midifile.c)
   list(APPEND SUMMARY_MIDI "raw")
@@ -242,4 +274,16 @@ endif()
 
 if (ENABLE_MODULES)
   add_subdirectory(modules)
+endif()
+
+if (VITA)
+  vita_create_self(xsystem35.self src/xsystem35)
+  vita_create_vpk(xsystem35.vpk ${VITA_TITLEID} xsystem35.self
+	VERSION ${VITA_VERSION}
+	NAME ${VITA_APP_NAME}
+	FILE vita/sce_sys/icon0.png sce_sys/icon0.png
+	FILE vita/sce_sys/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
+	FILE vita/sce_sys/livearea/contents/startup.png sce_sys/livearea/contents/startup.png
+	FILE vita/sce_sys/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
+	)
 endif()

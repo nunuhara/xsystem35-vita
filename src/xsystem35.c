@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <errno.h>
 
 #ifdef ENABLE_GTK
 #  define GTK_RC_NAME ".gtk/gtkrc"
@@ -192,6 +193,14 @@ static void sys35_usage(boolean verbose) {
 	exit(1);
 }
 
+#ifdef VITA
+void _sys_error(void)
+{
+	sys35_remove();
+	sceKernelExitProcess(1);
+	exit(1);
+}
+#else
 void sys_message(char *format, ...) {
 	va_list args;
 	
@@ -223,6 +232,7 @@ void sys_error(char *format, ...) {
 	sys35_remove();
 	exit(1);
 }
+#endif // VITA
 
 void sys_exit(int code) {
 	sys35_remove();
@@ -230,6 +240,9 @@ void sys_exit(int code) {
 	EM_ASM( xsystem35.shell.quit(); );
 	Sleep(1000000000);
 #else
+#ifdef VITA
+	sceKernelExitProcess(code);
+#endif // VITA
 	exit(code);
 #endif
 }
@@ -298,9 +311,9 @@ static boolean sys35_initGameDataDir(int* cnt)
     int i;
     
     getcwd(s1,255);
-    if(NULL == (dir= opendir(".")))
+    if (NULL == (dir = opendir(s1)))
     {
-        SYSERROR("Game Resouce File open failed\n");
+        SYSERROR("opendir failed: %s: %s\n", s1, strerror(errno));
     }
     while(NULL != (d = readdir(dir))){
         char *filename = d->d_name;
@@ -310,7 +323,7 @@ static boolean sys35_initGameDataDir(int* cnt)
             storeDataName(DRIFILE_SCO, 0, s2);
             cnt[0] = max(1, cnt[0]);
         } else if (strcasecmp(filename, "system39.ain") == 0) {
-		nact->ain.path_to_ain = strdup(filename);
+		nact->ain.path_to_ain = strdup(s2);
 	}
         else if(strcasecmp(filename+len-4,".ald")==0){
             dno = toupper(*(filename+len-5)) - 'A';
@@ -539,9 +552,11 @@ static void sys35_remove() {
 		fclose(fpdebuglog);
 	}
 #endif
+/*
 	if (nact->tmpdir && 0 != strcmp(nact->tmpdir, "/tmp")) {
 		rmdir(nact->tmpdir);
 	}
+*/
 }
 
 void sys_reset() {
@@ -551,9 +566,11 @@ void sys_reset() {
 	s39ini_remove();
 #endif
 	
+/*
 	if (0 != strcmp(nact->tmpdir, "/tmp")) {
 		rmdir(nact->tmpdir);
 	}
+*/
 	
 	execvp(saved_argv[0], saved_argv);
 	sys_error("exec fail");
@@ -769,9 +786,18 @@ static void check_profile() {
 			nact->noimagecursor = TRUE;
 		}
 	}
+	param = get_profile("fullscreen");
+	if (param) {
+		if (0 == strcmp(param, "Yes")) {
+			fs_on = TRUE;
+		}
+	}
 }
 
 void sys_set_signalhandler(int SIG, void (*handler)(int)) {
+#ifdef VITA
+	signal(SIG, handler);
+#else
 	struct sigaction act;
 	sigset_t smask;
 	
@@ -783,6 +809,7 @@ void sys_set_signalhandler(int SIG, void (*handler)(int)) {
 	act.sa_flags = 0;
 	
 	sigaction(SIG, &act, NULL);
+#endif // VITA
 }
 
 void init_signalhandler() {
@@ -794,6 +821,9 @@ void init_signalhandler() {
 }
 
 int main(int argc, char **argv) {
+#ifdef VITA
+	debugNetInit("192.168.11.118", 18194, DEBUGLEVEL_DEBUG);
+#endif
 	char *homedir = getenv("HOME"), *rc_name, *rc_path;
 	sys_set_signalhandler(SIGINT, SIG_IGN);
 	
@@ -815,11 +845,13 @@ int main(int argc, char **argv) {
 	
 	init_signalhandler();
 
+/*
 	nact->tmpdir = strdup("/tmp/xsystem35-XXXXXX");
 	if (NULL == mkdtemp(nact->tmpdir)) {
 		free(nact->tmpdir);
 		nact->tmpdir = strdup("/tmp");
 	}
+*/
 	
 	mus_init(audio_buffer_size);
 
@@ -856,5 +888,8 @@ int main(int argc, char **argv) {
 #endif
 	sys35_remove();
 	
+#ifdef VITA
+	sceKernelExitProcess(0);
+#endif
 	return 0;
 }

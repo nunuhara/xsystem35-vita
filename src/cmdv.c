@@ -1088,7 +1088,33 @@ static void va_unpause_itimer() {
 }
 
 #else // __EMSCRIPTEN__
+#ifdef VITA
+#include <SDL.h>
 
+SDL_TimerID va_timer;
+
+static void va_init_itimer() {
+	va_unpause_itimer();
+}
+
+static void va_pause_itimer() {
+	SDL_RemoveTimer(va_timer);
+}
+
+static Uint32 timer_callback(Uint32 interval, void *param)
+{
+	SDL_Event event = {
+		.type = SDL_USEREVENT,
+	};
+	SDL_PushEvent(&event);
+	return interval;
+}
+
+static void va_unpause_itimer() {
+	va_timer = SDL_AddTimer(10, timer_callback, NULL);
+}
+
+#else // VITA
 static void va_init_itimer() {
 	sys_set_signalhandler(SIGALRM, va_alarm_handler);
 	va_unpause_itimer();
@@ -1115,4 +1141,5 @@ static void va_unpause_itimer() {
 	nact->is_va_animation = TRUE;
 }
 
+#endif // VITA
 #endif // __EMSCRIPTEN__

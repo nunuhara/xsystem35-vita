@@ -161,10 +161,10 @@ static void font_ttf_sel_font(int type, int size) {
 		
 		name = this->name[type];
 		
-		err = FT_New_Face(eng, name, this->face[type], &face);
+		err = FT_New_Face(eng, PATH(name), this->face[type], &face);
 		if (err) {
 			WARNING("face %d is not found. retry 0", this->face[type]);
-			err = FT_New_Face(eng, name, 0, &face);
+			err = FT_New_Face(eng, PATH(name), 0, &face);
 		}
 		NOTICE("TTF open %s size %d\n", name, size);
 		if (err) {

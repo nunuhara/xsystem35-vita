@@ -54,6 +54,12 @@ int sdl_Initilize(void) {
 	/* offscreen Pixmap */
 	makeDIB(SYS35_DEFAULT_WIDTH, SYS35_DEFAULT_HEIGHT, SYS35_DEFAULT_DEPTH);
 	
+#ifdef VITA
+	// for software cursor
+	SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+	ms_active = TRUE; // Vita doesn't get window events (mouse always active)
+#endif
+
 	/* init cursor */
 	sdl_cursor_init();
 	
@@ -106,6 +112,9 @@ static void window_init(void) {
 #ifdef HAVE_SDLJOY
 		 |SDL_INIT_JOYSTICK
 #endif
+#ifdef VITA
+		 |SDL_INIT_TIMER
+#endif // VITA
 		);
 	
 	sdl_window = SDL_CreateWindow("XSystem3.5 Version "VERSION,

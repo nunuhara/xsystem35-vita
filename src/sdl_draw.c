@@ -64,12 +64,68 @@ static void sdl_pal_check(void) {
 	}
 }
 
+#ifdef VITA
+extern int mousex;
+extern int mousey;
+extern SceUInt64 joy_time;
+extern boolean hide_cursor;
+
+SDL_Point sw_cursor_outline[8] = {
+	{  0, 0  },
+	{  0, 14 },
+	{  3, 11 },
+	{  7, 18 },
+	{  9, 17 },
+	{  6, 10 },
+	{ 10, 10 },
+	{  0, 0  }
+};
+
+SDL_Rect sw_cursor[11] = {
+	{ .x = 1, .y = 2,  .w = 1, .h = 11 },
+	{ .x = 2, .y = 3,  .w = 1, .h = 9  },
+	{ .x = 3, .y = 4,  .w = 1, .h = 7  },
+	{ .x = 4, .y = 5,  .w = 1, .h = 7 },
+	{ .x = 5, .y = 6,  .w = 1, .h = 8 },
+	{ .x = 6, .y = 7,  .w = 1, .h = 3 },
+	{ .x = 7, .y = 8,  .w = 1, .h = 2 },
+	{ .x = 8, .y = 9,  .w = 1, .h = 1 },
+	{ .x = 6, .y = 12, .w = 1, .h = 4 },
+	{ .x = 7, .y = 14, .w = 1, .h = 4 },
+	{ .x = 8, .y = 16, .w = 1, .h = 2 }
+};
+
+static void render_sw_cursor(void)
+{
+	SDL_Rect cursor_buf[11];
+	SDL_Point outline_buf[8];
+	memcpy(cursor_buf, sw_cursor, sizeof(cursor_buf));
+	memcpy(outline_buf, sw_cursor_outline, sizeof(outline_buf));
+	for (int i = 0; i < 11; i++) {
+		cursor_buf[i].x += mousex;
+		cursor_buf[i].y += mousey;
+	}
+	for (int i = 0; i < 8; i++) {
+		outline_buf[i].x += mousex;
+		outline_buf[i].y += mousey;
+	}
+	SDL_SetRenderDrawColor(sdl_renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+	SDL_RenderFillRects(sdl_renderer, cursor_buf, 11);
+	SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+	SDL_RenderDrawLines(sdl_renderer, outline_buf, 8);
+}
+#endif
+
 void sdl_updateScreen(void) {
 	if (!sdl_dirty)
 		return;
 	SDL_UpdateTexture(sdl_texture, NULL, sdl_display->pixels, sdl_display->pitch);
 	SDL_RenderClear(sdl_renderer);
 	SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
+#ifdef VITA
+	if (!hide_cursor)
+		render_sw_cursor();
+#endif
 	SDL_RenderPresent(sdl_renderer);
 	sdl_dirty = false;
 }

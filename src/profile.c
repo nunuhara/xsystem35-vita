@@ -31,6 +31,9 @@
 #include "portab.h"
 #include "profile.h"
 
+#include "system.h"
+#include <errno.h>
+
 static char **profile_name = NULL, **profile_value = NULL;
 static int profile_values = 0;
 static int profile_ready = FALSE;
@@ -58,8 +61,8 @@ int load_profile(char *path)
 	
 	if (!fp) {
 		/* 見つからなかったら、CWD から .gicqjarc を探す */
-		strcpy(profile_path, RC_NAME);
-		fp = fopen(RC_NAME, "r");
+		strcpy(profile_path, PATH(RC_NAME));
+		fp = fopen(profile_path, "r");
 		if (!fp) {
 			/* CWD からも見つからなかったら、エラーを表示して終了 */
 			char *error_msg;
@@ -90,7 +93,7 @@ int load_profile(char *path)
 			if (*q == ':')
 				is_flag = TRUE;
 			
-			if (iscntrl(*q) || (is_flag == TRUE)?*q == '\n':isspace(*q))
+			if (iscntrl(*q) || (!is_flag && isspace(*q)))
 				q++;
 			else
 				*p++ = *q++;

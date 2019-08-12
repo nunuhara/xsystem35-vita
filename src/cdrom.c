@@ -82,7 +82,7 @@ int cd_init(cdromdevice_t *cd) {
 	
 	if (dev == NULL) return -1;
 	
-	stat(dev, &st);
+	stat(PATH(dev), &st);
 	if (S_ISBLK(st.st_mode) | S_ISCHR(st.st_mode)) {
 		/* CDROM MODE */
 		memcpy(cd, DEV_PLAY_MODE, sizeof(cdromdevice_t));

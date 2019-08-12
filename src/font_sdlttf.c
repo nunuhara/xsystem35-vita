@@ -51,7 +51,7 @@ static void font_ttf_sel_font(int type, int size) {
 	if (NULL == (tbl = font_lookup(size, type))) {
 		TTF_Font *fs;
 		
-		fs = TTF_OpenFont(this->name[type], size);
+		fs = TTF_OpenFont(PATH(this->name[type]), size);
 		
 		if (fs == NULL) {
 			WARNING("%s is not found:\n", this->name[type]);

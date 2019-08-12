@@ -94,7 +94,7 @@ static int cdrom_init(char *config_file) {
 	int lcnt = 0;
 	char *s;
 	
-	if (NULL == (fp = fopen(config_file, "rt"))) return NG;
+	if (NULL == (fp = fopen(PATH(config_file), "rt"))) return NG;
 	// Skip the first line
 	fgets(lbuf, sizeof(lbuf), fp); lcnt++;
 	
@@ -116,8 +116,8 @@ static int cdrom_init(char *config_file) {
 			return NG;
 		}
 		s = lbuf;
-		while (*s != '\n' && *s != 0) s++;
-		if (*s == '\n') *s=0;
+		while (*s != '\n' && *s != '\r' && *s != 0) s++;
+		if (*s == '\n' || *s == '\r') *s=0;
 		strcpy(playlist[lcnt - 2], lbuf);
 	}
 	lastindex = lcnt -1;
@@ -153,9 +153,11 @@ static int cdrom_start(int trk, boolean loop) {
 	if (mix_music)
 		Mix_FreeMusic(mix_music);
 
-	mix_music = Mix_LoadMUS(playlist[trk -2]);
-	if (!mix_music)
+	mix_music = Mix_LoadMUS(PATH(playlist[trk -2]));
+	if (!mix_music) {
+		WARNING("Failed to load track %d\n", trk);
 		return NG;
+	}
 	if (Mix_PlayMusic(mix_music, loop ? -1 : 1) != 0) {
 		Mix_FreeMusic(mix_music);
 		mix_music = NULL;
