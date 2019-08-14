@@ -101,7 +101,11 @@ static boolean isjix0213_tt[FONTTYPEMAX];
 static char fontface[FONTTYPEMAX];
 
 #ifdef ENABLE_SDL
+#ifdef ENABLE_SDLTTF
+static fontdev_t fontdev = FONT_SDLTTF;
+#else
 static fontdev_t fontdev = FONT_FT2;
+#endif
 #else
 static fontdev_t fontdev = FONT_X11;
 #endif
@@ -248,6 +252,15 @@ void sys_exit(int code) {
 }
 
 static int check_fontdev(char *devname) {
+#ifdef ENABLE_SDLTTF
+	if (0 == strcmp(devname, "ttf")) {
+		return FONT_SDLTTF;
+	}
+	if (0 == strcmp(devname, "sdl")) {
+		return FONT_SDLTTF;
+	}
+#endif
+
 #ifdef ENABLE_FT2
 	if (0 == strcmp(devname, "ft2")) {
 		return FONT_FT2;

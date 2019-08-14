@@ -84,8 +84,9 @@ elseif (VITA)
 	)
   target_link_libraries(xsystem35
 	debugnet
-	freetype
 	SDL2_mixer
+	SDL2_ttf
+	freetype
 	SDL2
 	vita2d
 	mpg123
@@ -131,6 +132,9 @@ else()  # non-emscripten
   endif()
   if (SDL2MIXER_FOUND)
 	target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2MIXER)
+  endif()
+  if (SDL2TTF_FOUND)
+	target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2TTF)
   endif()
 
   install(TARGETS xsystem35 RUNTIME DESTINATION bin)
