@@ -50,11 +50,11 @@ boolean RawKeyInfo[256];
 static int joyinfo=0;
 
 #ifdef VITA
-#define JOYSTICK_DEAD_ZONE 8000
-#define JOYSTICK_SPEED 2
 extern void va_alarm_handler();
-static int joydir_x = 0;
-static int joydir_y = 0;
+static float joystick_dead_zone = 0.25;
+static int joystick_speed = 4;
+static float joydir_x = 0;
+static float joydir_y = 0;
 SceUInt64 joy_time = 0;
 boolean hide_cursor = TRUE;
 #endif
@@ -67,7 +67,6 @@ static boolean touch_location(SDL_Event *e, int *x, int *y) {
 #ifdef VITA
 	int _x = (e->tfinger.x*VITA_W - renderoffset_x) * (1/renderscale);
 	int _y = (e->tfinger.y*VITA_H - renderoffset_y) * (1/renderscale);
-	NOTICE("TOUCH %d %d\n", _x, _y);
 	if (_x < 0 || _y < 0 || _x >= view_w || _y >= view_h)
 		return FALSE;
 	*x = _x;
@@ -232,24 +231,12 @@ static void sdl_getEvent(void) {
 #ifdef VITA
 		case SDL_JOYAXISMOTION:
 			if (e.jaxis.axis == 0) {
-				// Left of dead zone
-				if (e.jaxis.value < -JOYSTICK_DEAD_ZONE)
-					joydir_x = -1;
-				else if (e.jaxis.value > JOYSTICK_DEAD_ZONE)
-					joydir_x = 1;
-				else
-					joydir_x = 0;
+				joydir_x = e.jaxis.value/32768.0;
 			} else if (e.jaxis.axis == 1) {
-				if (e.jaxis.value < -JOYSTICK_DEAD_ZONE)
-					joydir_y = -1;
-				else if (e.jaxis.value > JOYSTICK_DEAD_ZONE)
-					joydir_y = 1;
-				else
-					joydir_y = 0;
+				joydir_y = e.jaxis.value/32768.0;
 			}
 			break;
 		case SDL_JOYBUTTONDOWN:
-			NOTICE("BUTTON: %d\n", e.jbutton.button);
 			switch (e.jbutton.button) {
 			case 1: mouse_down(SDL_BUTTON_RIGHT); break; // Circle
 			case 2: mouse_down(SDL_BUTTON_LEFT);  break; // X
@@ -309,11 +296,10 @@ static void sdl_getEvent(void) {
 		}
 	}
 #ifdef VITA
-	if (joydir_x || joydir_y) {
+	if (fabsf(joydir_x) > joystick_dead_zone || fabsf(joydir_y) > joystick_dead_zone) {
 		joy_time = sceKernelGetProcessTimeWide();
-		// TODO: variable speed
-		mousex = max(0, min(view_w-1, mousex + joydir_x * JOYSTICK_SPEED));
-		mousey = max(0, min(view_h-1, mousey + joydir_y * JOYSTICK_SPEED));
+		mousex = max(0, min(view_w-1, mousex + joydir_x * joystick_speed));
+		mousey = max(0, min(view_h-1, mousey + joydir_y * joystick_speed));
 		send_agsevent(AGSEVENT_MOUSE_MOTION, 0);
 		hide_cursor = FALSE;
 		sdl_dirty = TRUE;
