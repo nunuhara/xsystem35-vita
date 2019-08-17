@@ -50,7 +50,6 @@ boolean RawKeyInfo[256];
 static int joyinfo=0;
 
 #ifdef VITA
-#define VITA_TOUCH_WIDTH ((400.0 / 544.0)*960.0) // width of touchscreen in logical pixels
 #define JOYSTICK_DEAD_ZONE 8000
 #define JOYSTICK_SPEED 2
 extern void va_alarm_handler();
@@ -59,6 +58,26 @@ static int joydir_y = 0;
 SceUInt64 joy_time = 0;
 boolean hide_cursor = TRUE;
 #endif
+
+/*
+ * Translate touch screen coordinates to logical coordinates.
+ * Returns true IFF the touch location is within the display bounds.
+ */
+static boolean touch_location(SDL_Event *e, int *x, int *y) {
+#ifdef VITA
+	int _x = (e->tfinger.x*VITA_W - renderoffset_x) * (1/renderscale);
+	int _y = (e->tfinger.y*VITA_H - renderoffset_y) * (1/renderscale);
+	NOTICE("TOUCH %d %d\n", _x, _y);
+	if (_x < 0 || _y < 0 || _x >= view_w || _y >= view_h)
+		return FALSE;
+	*x = _x;
+	*y = _y;
+#else
+	*x = e->tfinger.x * view_w;
+	*y = e->tfinger.y * view_h;
+#endif
+	return TRUE;
+}
 
 static int mouse_to_rawkey(int button) {
 	switch(button) {
@@ -187,13 +206,8 @@ static void sdl_getEvent(void) {
 				mouse_up(SDL_BUTTON_LEFT, &m2b);
 				mouse_down(SDL_BUTTON_RIGHT);
 			} else {
-#ifdef VITA
-				mousex = e.tfinger.x * VITA_TOUCH_WIDTH;
-#else
-				mousex = e.tfinger.x * view_w;
-#endif // VITA
-				mousey = e.tfinger.y * view_h;
-				mouse_down(SDL_BUTTON_LEFT);
+				if (touch_location(&e, &mousex, &mousey))
+					mouse_down(SDL_BUTTON_LEFT);
 			}
 			break;
 
@@ -201,27 +215,18 @@ static void sdl_getEvent(void) {
 			if (e.tfinger.touchId != 0)
 				break;
 			if (SDL_GetNumTouchFingers(SDL_GetTouchDevice(0)) == 0) {
-#ifdef VITA
-				mousex = e.tfinger.x * VITA_TOUCH_WIDTH;
-#else
-				mousex = e.tfinger.x * view_w;
-#endif // VITA
-				mousey = e.tfinger.y * view_h;
-				mouse_up(SDL_BUTTON_LEFT, &m2b);
-				mouse_up(SDL_BUTTON_RIGHT, &m2b);
+				if (touch_location(&e, &mousex, &mousey)) {
+					mouse_up(SDL_BUTTON_LEFT, &m2b);
+					mouse_up(SDL_BUTTON_RIGHT, &m2b);
+				}
 			}
 			break;
 
 		case SDL_FINGERMOTION:
 			if (e.tfinger.touchId != 0)
 				break;
-#ifdef VITA
-			mousex = e.tfinger.x * VITA_TOUCH_WIDTH;
-#else
-			mousex = e.tfinger.x * view_w;
-#endif // VITA
-			mousey = e.tfinger.y * view_h;
-			send_agsevent(AGSEVENT_MOUSE_MOTION, 0);
+			if (touch_location(&e, &mousex, &mousey))
+				send_agsevent(AGSEVENT_MOUSE_MOTION, 0);
 			break;
 
 #ifdef VITA

@@ -33,9 +33,28 @@
 #include "system.h"
 #include "sdl_private.h"
 
+#ifdef VITA
+static void update_renderparams(void)
+{
+	if (sdl_fs_on) {
+		float hscale = (float)VITA_W / (float)view_w;
+		float vscale = (float)VITA_H / (float)view_h;
+		renderscale = min(hscale, vscale);
+	} else {
+		renderscale = 1;
+	}
+	renderoffset_x = 960/2 - (view_w*renderscale)/2;
+	renderoffset_y = 544/2 - (view_h*renderscale)/2;
+}
+
+#endif
 
 void sdl_FullScreen(boolean on) {
-	
+#ifdef VITA
+	sdl_fs_on = on;
+	sdl_dirty = TRUE;
+	update_renderparams();
+#else
 	if (on && !sdl_fs_on) {
 		sdl_fs_on = TRUE;
 		SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -43,8 +62,8 @@ void sdl_FullScreen(boolean on) {
 		sdl_fs_on = FALSE;
 		SDL_SetWindowFullscreen(sdl_window, 0);
 	}
+#endif
 }
-
 
 /* Windowの大きさの変更 */
 void sdl_setWindowSize(int x, int y, int w, int h) {
@@ -57,7 +76,6 @@ void sdl_setWindowSize(int x, int y, int w, int h) {
 	view_h = h;
 	
 	SDL_SetWindowSize(sdl_window, w, h);
-	SDL_RenderSetLogicalSize(sdl_renderer, w, h);
 	if (sdl_display)
 		SDL_FreeSurface(sdl_display);
 	if (sdl_texture)
@@ -65,6 +83,11 @@ void sdl_setWindowSize(int x, int y, int w, int h) {
 	sdl_display = SDL_CreateRGBSurface(0, w, h, 32, 0, 0, 0, 0);
 	sdl_texture = SDL_CreateTexture(sdl_renderer, sdl_display->format->format,
 									SDL_TEXTUREACCESS_STATIC, w, h);
+#ifdef VITA
+	update_renderparams();
+#else
+	SDL_RenderSetLogicalSize(sdl_renderer, w, h);
+#endif
 
 	//ms_active = (SDL_GetAppState() & SDL_APPMOUSEFOCUS) ? TRUE : FALSE;
 #ifdef __EMSCRIPTEN__

@@ -57,7 +57,11 @@ struct sdl_private_data {
 
 	int      winoffset_x; /* draw offset in Window x */
 	int      winoffset_y; /*                       y */
-
+#ifdef VITA
+	int renderoffset_x;
+	int renderoffset_y;
+	float renderscale;
+#endif
 };
 
 extern void sdl_cursor_init(void);
@@ -87,6 +91,11 @@ extern struct sdl_private_data *sdl_videodev;
 #define sdl_fs_on (sdl_videodev->fs_on)
 #define winoffset_x (sdl_videodev->winoffset_x)
 #define winoffset_y (sdl_videodev->winoffset_y)
+#ifdef VITA
+#define renderoffset_x (sdl_videodev->renderoffset_x)
+#define renderoffset_y (sdl_videodev->renderoffset_y)
+#define renderscale (sdl_videodev->renderscale)
+#endif
 
 #define setRect(r,xx,yy,ww,hh) (r).x=(xx),(r).y=(yy),(r).w=(ww),(r).h=(hh)
 #define setOffset(s,x,y) (s->pixels) + (x) * (s->format->BytesPerPixel) + (y) * s->pitch
