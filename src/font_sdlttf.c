@@ -11,9 +11,6 @@
 #include "sdl_private.h"
 #include "utfsjis.h"
 
-// defined in sdl_draw.c
-int sdl_nearest_color(int r, int g, int b);
-
 typedef struct {
 	int      size;
 	int      type;
@@ -24,14 +21,14 @@ typedef struct {
 static FontTable fonttbl[FONTTABLEMAX];
 static int       fontcnt = 0;
 
-static TTF_Font *fontset;
+static FontTable *fontset;
 
 static FONT *this;
 
-static void font_insert(int size, int type, TTF_Font *fontset) {
+static void font_insert(int size, int type, TTF_Font *font) {
 	fonttbl[fontcnt].size = size;
 	fonttbl[fontcnt].type = type;
-	fonttbl[fontcnt].id   = fontset;
+	fonttbl[fontcnt].id   = font;
 	
 	if (fontcnt >= (FONTTABLEMAX -1)) {
 		WARNING("Font table is full.\n");
@@ -66,9 +63,9 @@ static void font_sdlttf_sel_font(int type, int size) {
 		}
 		
 		font_insert(size, type, fs);
-		fontset = fs;
+		fontset = &fonttbl[fontcnt - 1];
 	} else {
-		fontset = tbl->id;
+		fontset = tbl;
 	}
 }
 
@@ -84,15 +81,13 @@ static void sdl_drawAntiAlias_8bpp(int dstx, int dsty, SDL_Surface *src, unsigne
 	Uint8 cache[256*7];
 	memset(cache, 0, 256);
 
-	for (int y = 0; y < src->h; y++) {
+	for (int y = 0; y < src->h && dsty + y < sdl_dib->h; y++) {
 		BYTE *sp = (BYTE*)src->pixels + y * src->pitch;
 		BYTE *dp = (BYTE*)sdl_dib->pixels + (dsty + y) * sdl_dib->pitch + dstx;
-		for (int x = 0; x < src->w; x++) {
-			Uint8 r, g, b, a, alpha, max_alpha;
-			SDL_GetRGBA(*((Uint32*)sp), src->format, &r, &g, &b, &a);
-			// reduce depth of alpha to 3 bits
-			max_alpha = src->format->Amask >> src->format->Ashift;
-			alpha = round(7.0 * ((float)a / (float)max_alpha));
+		for (int x = 0; x < src->w && dstx + x < sdl_dib->w; x++) {
+			Uint8 r, g, b, alpha;
+			SDL_GetRGBA(*((Uint32*)sp), src->format, &r, &g, &b, &alpha);
+			alpha = alpha >> 5; // reduce bit depth
 			if (!alpha) {
 				// Transparent, do nothing
 			} else if (alpha == 7) {
@@ -109,7 +104,7 @@ static void sdl_drawAntiAlias_8bpp(int dstx, int dsty, SDL_Surface *src, unsigne
 				cache[alpha << 8 | *dp] = c;
 				*dp = c;
 			}
-			sp += src->format->BitsPerPixel / 8;
+			sp += src->format->BytesPerPixel;
 			dp++;
 		}
 	}
@@ -120,7 +115,7 @@ static void sdl_drawAntiAlias_8bpp(int dstx, int dsty, SDL_Surface *src, unsigne
 static int font_sdlttf_draw_glyph(int x, int y, unsigned char *str, int cl) {
 	SDL_Surface *fs;
 	SDL_Rect r_src, r_dst;
-	int w, h;
+	int w, h, maxy;
 	BYTE *conv;
 	
 	if (!*str)
@@ -128,27 +123,29 @@ static int font_sdlttf_draw_glyph(int x, int y, unsigned char *str, int cl) {
 	
 	conv = sjis2lang(str);
 	if (this->antialiase_on) {
-		fs = TTF_RenderUTF8_Blended(fontset, conv, sdl_col[cl]);
+		fs = TTF_RenderUTF8_Blended(fontset->id, conv, sdl_col[cl]);
 	} else {
-		fs = TTF_RenderText_Solid(fontset, conv, sdl_col[cl]);
+		fs = TTF_RenderText_Solid(fontset->id, conv, sdl_col[cl]);
 	}
 	if (!fs) {
 		WARNING("Text rendering failed: %s\n", TTF_GetError());
+		free(conv);
 		return 0;
 	}
 	
-	TTF_SizeText(fontset, str, &w, &h);
-	
-	setRect(r_src, 0, 0, w, h);
-	setRect(r_dst, x, y, w, h);
+	TTF_SizeUTF8(fontset->id, conv, &w, &h);
+	y = max(0, y - (TTF_FontAscent(fontset->id) - fontset->size * 0.9));
 	
 	if (sdl_dib->format->BitsPerPixel == 8 && this->antialiase_on) {
 		sdl_drawAntiAlias_8bpp(x, y, fs, cl);
 	} else {
+		setRect(r_src, 0, 0, w, h);
+		setRect(r_dst, x, y, w, h);
 		SDL_BlitSurface(fs, &r_src, sdl_dib, &r_dst);
 	}
 
 	SDL_FreeSurface(fs);
+	free(conv);
 	
 	return w;
 }

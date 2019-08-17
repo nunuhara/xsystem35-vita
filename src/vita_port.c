@@ -83,7 +83,7 @@ int munmap(void *addr, size_t length)
 	mmap_free(addr);
 }
 
-static char vita_cwd[PATH_MAX] = "ux0:/xsystem35";
+static char vita_cwd[PATH_MAX] = VITA_HOME;
 static char path_buf[PATH_MAX] = {0};
 
 char *vita_path(const char *path)
@@ -105,7 +105,7 @@ char *vita_path(const char *path)
 
 int chdir(const char *path)
 {
-	strncpy(path_buf, path, PATH_MAX-1);
+	strncpy(vita_cwd, path, PATH_MAX-1);
 }
 
 char *getcwd(char *buf, size_t size)

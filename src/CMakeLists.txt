@@ -39,7 +39,11 @@ target_sources(xsystem35 PRIVATE
 # Misc
 target_sources(xsystem35 PRIVATE
   LittleEndian.c counter.c imput.c profile.c mt19937-1.c utfsjis.c
-  filecheck.c tempname.c)
+  filecheck.c)
+
+if (NOT VITA)
+  target_sources(xsystem35 PRIVATE tempname.c)
+endif()
 
 # Scenario
 target_sources(xsystem35 PRIVATE
@@ -77,7 +81,7 @@ if (EMSCRIPTEN)
 	"SHELL:-s EXTRA_EXPORTED_RUNTIME_METHODS=\"['getValue','getMemory','addRunDependency','removeRunDependency']\"")
 
 elseif (VITA)
-  target_sources(xsystem35 PRIVATE vita_port.c)
+  target_sources(xsystem35 PRIVATE vita_launcher.c vita_port.c)
   target_compile_definitions(xsystem35 PRIVATE
 	VITA=1
 	VITA_TITLEID="${VITA_TITLEID}"
@@ -109,6 +113,7 @@ elseif (VITA)
 	SceCommonDialog_stub
 	SceTouch_stub
 	SceHid_stub
+	ScePgf_stub
 	m
 	c
 	)
