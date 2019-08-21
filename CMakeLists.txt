@@ -287,6 +287,11 @@ if (VITA)
   vita_create_vpk(xsystem35.vpk ${VITA_TITLEID} xsystem35.self
 	VERSION ${VITA_VERSION}
 	NAME ${VITA_APP_NAME}
+	FILE vita/.xsys35rc .xsys35rc
+	FILE vita/fonts/mincho.otf fonts/mincho.otf
+	FILE vita/fonts/mincho.otf fonts/mincho.otf.license
+	FILE vita/fonts/MTLc3m.ttf fonts/MTLc3m.ttf
+	FILE vita/fonts/MTLc3m.ttf fonts/MTLc3m.ttf.license
 	FILE vita/sce_sys/icon0.png sce_sys/icon0.png
 	FILE vita/sce_sys/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
 	FILE vita/sce_sys/livearea/contents/startup.png sce_sys/livearea/contents/startup.png

@@ -1,0 +1,11 @@
+# Font Configuration
+ttfont_mincho: app0:fonts/mincho.otf
+ttfont_gothic: app0:fonts/MTLc3m.ttf
+antialias: Yes
+
+# BGM
+cdrom_device: playlist
+
+# Misc.
+no_shm: Yes
+fullscreen: Yes
