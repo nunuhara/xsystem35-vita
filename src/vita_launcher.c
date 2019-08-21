@@ -21,6 +21,7 @@
 
 #include <psp2/appmgr.h>
 #include <psp2/io/fcntl.h>
+#include <psp2/io/stat.h>
 #include <psp2/types.h>
 #include <psp2/ctrl.h>
 #include <vita2d.h>
@@ -112,13 +113,37 @@ static int check_game_directory(const char *path, const char *base, struct game 
 	return 1;
 }
 
+static DIR *open_home_directory(const char *path)
+{
+	int rc;
+	DIR *dir;
+	struct stat s;
+
+	rc = stat(path, &s);
+	if (rc < 0 && errno != ENOENT) {
+		return NULL;
+	} else if (rc < 0) {
+		// create directory
+		if (sceIoMkdir(path, SCE_S_IRWXU | SCE_S_IRWXG | SCE_S_IRWXO) < 0)
+			return NULL;
+	} else if (!S_ISDIR(s.st_mode)) {
+		errno = ENOTDIR;
+		return NULL;
+	}
+
+	if (!(dir = opendir(path)))
+		return NULL;
+
+	return dir;
+}
+
 static bool scan_games(void)
 {
 	DIR *dir;
 	struct dirent *ent;
 	static char path_buf[PATH_MAX];
 
-	if (!(dir = opendir(VITA_HOME)))
+	if (!(dir = open_home_directory(VITA_HOME)))
 		return false;
 
 	while ((ent = readdir(dir))) {
