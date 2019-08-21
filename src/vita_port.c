@@ -86,6 +86,17 @@ int munmap(void *addr, size_t length)
 static char vita_cwd[PATH_MAX] = VITA_HOME;
 static char path_buf[PATH_MAX] = {0};
 
+static int is_abspath(const char *path)
+{
+	for (int i = 0; i < 5 && *path; i++, path++) {
+		if (*path == '/')
+			return 0;
+		if (*path == ':')
+			return 1;
+	}
+	return 0;
+}
+
 char *vita_path(const char *path)
 {
 	// substitute ux0: for '/'
@@ -95,7 +106,7 @@ char *vita_path(const char *path)
 	else if (path[0] == '.' && path[1] == '/')
 		snprintf(path_buf, PATH_MAX-1, "%s%s", vita_cwd, path+1);
 	// absolute paths are OK as is
-	else if (path[0] && path[1] && path[2] && path[3] == ':')
+	else if (is_abspath(path))
 		strncpy(path_buf, path, PATH_MAX-1);
 	// prefix relative paths with vita_cwd/
 	else
