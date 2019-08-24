@@ -163,35 +163,37 @@ static void menu_handle_key(struct widget *w, BYTE key, boolean pressed)
 	int hovered;
 	struct menu *menu = (struct menu*)w;
 
-	if (!pressed) {
-		widget_handle_key(menu->entries[menu->selection], key, pressed);
-		return;
-	}
-
-	switch (key) {
-	case KEY_MOUSE_LEFT:
-		sys_getMouseInfo(&mouse, FALSE);
-		hovered = menu_entry_at(menu, mouse.x, mouse.y);
-		if (hovered >= 0) {
-			widget_activate(menu->entries[hovered]);
+	if (pressed) {
+		switch (key) {
+		case KEY_UP:
+			menu->selection = max(0, menu->selection - 1);
+			return;
+		case KEY_DOWN:
+			menu->selection = min(menu->nr_entries - 1, menu->selection + 1);
+			return;
+		default:
+			break;
 		}
-		break;
-	case KEY_UP:
-		menu->selection = max(0, menu->selection - 1);
-		break;
-	case KEY_DOWN:
-		menu->selection = min(menu->nr_entries - 1, menu->selection + 1);
-		break;
-	case KEY_ENTER:
-		widget_activate(menu->entries[menu->selection]);
-		break;
-	case KEY_ESC:
-		widget_stack_pop();
-		break;
-	default:
-		widget_handle_key(menu->entries[menu->selection], key, pressed);
-		break;
+	} else {
+		switch (key) {
+		case KEY_MOUSE_LEFT:
+			sys_getMouseInfo(&mouse, FALSE);
+			hovered = menu_entry_at(menu, mouse.x, mouse.y);
+			if (hovered >= 0) {
+				widget_activate(menu->entries[hovered]);
+			}
+			return;
+		case KEY_ENTER:
+			widget_activate(menu->entries[menu->selection]);
+			return;
+		case KEY_ESC:
+			widget_stack_pop();
+			return;
+		default:
+			break;
+		}
 	}
+	widget_handle_key(menu->entries[menu->selection], key, pressed);
 }
 
 static void menu_handle_mouse(struct widget *w, MyPoint cur, MyPoint prev)
