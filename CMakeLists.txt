@@ -115,9 +115,8 @@ elseif (GTK2_FOUND)
 	link_libraries(${Intl_LIBRARIES})
   endif()
 else()
-  set(SRC_MENU menu_null.c)
+  set(SRC_MENU menu_ags.c menu_ags_widgets.c)
 endif()
-# TODO: Vita menu
 
 # Graphics
 

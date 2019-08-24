@@ -137,6 +137,8 @@ struct _ags {
 	
 
 	FONT *font;                 /* font device */
+	int font_type;              /* active font type */
+	int font_size;              /* active font size */
 	agsurface_t *dib;           /* main surface */
 	void (*eventcb)(agsevent_t *e); /* deliver event */
 };

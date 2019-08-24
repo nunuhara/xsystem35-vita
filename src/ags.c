@@ -763,6 +763,8 @@ void ags_whiteOut(int rate, boolean flag) {
 }
 
 void ags_setFont(int type, int size) {
+	nact->ags.font_type = type;
+	nact->ags.font_size = size;
 	nact->ags.font->sel_font(type, size);
 }
 

@@ -254,6 +254,7 @@ static void sdl_getEvent(void) {
 			case 2: mouse_up(SDL_BUTTON_LEFT, &m2b);  break; // X
 			case 6: case 8: joydir_y = 0;             break; // Down/Up
 			case 7: case 9: joydir_x = 0;             break; // Down/Up
+			case 11: m2b = TRUE;                      break; // Start
 			default:                                  break; // Ignore others
 			}
 			break;
