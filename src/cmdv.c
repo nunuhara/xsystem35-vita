@@ -804,6 +804,10 @@ void commandVA() { /* from Panyo */
 				VAcmd[p1].rewrite = TRUE;
 				/* キー抜け無し ,p3=0は指定不可 */
 				while(VAcmd[p1].state == VA_RUNNING) {
+#ifdef VITA
+					// need sdl_getEvent to run on Vita
+					sys_getInputInfo();
+#endif
 					va_animationAlone(p1);
 					Sleep(10);
 				}
