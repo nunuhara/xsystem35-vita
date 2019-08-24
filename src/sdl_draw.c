@@ -39,6 +39,7 @@
 #include "ags.h"
 #include "image.h"
 #include "nact.h"
+#include "imput.h"
 
 static int fadestep[256] =
 {0,1,3,4,6,7,9,10,12,14,15,17,18,20,21,23,25,26,28,29,31,32,34,36,37,39,40,
@@ -67,8 +68,13 @@ static void sdl_pal_check(void) {
 #ifdef VITA
 extern int mousex;
 extern int mousey;
-extern SceUInt64 joy_time;
-extern boolean hide_cursor;
+extern float joydir_x;
+extern float joydir_y;
+
+static float joystick_dead_zone = 0.25;
+static int joystick_speed = 16;
+static SceUInt64 joy_time;
+static boolean hide_cursor = TRUE;
 
 SDL_Point sw_cursor_outline[8] = {
 	{  0, 0  },
@@ -114,25 +120,62 @@ static void render_sw_cursor(void)
 	SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 	SDL_RenderDrawLines(sdl_renderer, outline_buf, 8);
 }
-#endif
+
+static void send_agsevent(int type, int code)
+{
+	if (!nact->ags.eventcb)
+		return;
+	agsevent_t agse;
+	agse.type = type;
+	agse.d1 = mousex;
+	agse.d2 = mousey;
+	agse.d3 = code;
+	nact->ags.eventcb(&agse);
+}
+
+void sdl_updateScreen(void)
+{
+	SDL_Rect dst;
+
+	// translate joystick to mouse movement
+	// we do this here to ensure it runs exactly once per frame
+	if (fabsf(joydir_x) > joystick_dead_zone || fabs(joydir_y) > joystick_dead_zone) {
+		joy_time = sceKernelGetProcessTimeWide();
+		mousex = max(0, min(view_w-1, mousex + joydir_x * joystick_speed));
+		mousey = max(0, min(view_h-1, mousey + joydir_y * joystick_speed));
+		send_agsevent(AGSEVENT_MOUSE_MOTION, 0);
+		hide_cursor = FALSE;
+		sdl_dirty = TRUE;
+	} else if (!hide_cursor && sceKernelGetProcessTimeWide() - joy_time > 750000) {
+		hide_cursor = TRUE;
+		sdl_dirty = TRUE;
+	}
+
+	if (!sdl_dirty)
+		return;
+	SDL_UpdateTexture(sdl_texture, NULL, sdl_display->pixels, sdl_display->pitch);
+	SDL_RenderClear(sdl_renderer);
+	setRect(dst, renderoffset_x, renderoffset_y, view_w*renderscale, view_h*renderscale);
+	SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, &dst);
+	if (!hide_cursor)
+		render_sw_cursor();
+	SDL_RenderPresent(sdl_renderer);
+	sdl_dirty = false;
+
+}
+
+#else
 
 void sdl_updateScreen(void) {
 	if (!sdl_dirty)
 		return;
 	SDL_UpdateTexture(sdl_texture, NULL, sdl_display->pixels, sdl_display->pitch);
 	SDL_RenderClear(sdl_renderer);
-#ifdef VITA
-	SDL_Rect dst;
-	setRect(dst, renderoffset_x, renderoffset_y, view_w*renderscale, view_h*renderscale);
-	SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, &dst);
-	if (!hide_cursor)
-		render_sw_cursor();
-#else
 	SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
-#endif
 	SDL_RenderPresent(sdl_renderer);
 	sdl_dirty = false;
 }
+#endif
 
 void sdl_sleep(int msec) {
 	sdl_updateScreen();

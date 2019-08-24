@@ -50,13 +50,17 @@ boolean RawKeyInfo[256];
 static int joyinfo=0;
 
 #ifdef VITA
+static void send_agsevent(int type, int code);
 extern void va_alarm_handler();
-static float joystick_dead_zone = 0.25;
-static int joystick_speed = 4;
-static float joydir_x = 0;
-static float joydir_y = 0;
-SceUInt64 joy_time = 0;
-boolean hide_cursor = TRUE;
+
+float joydir_x = 0;
+float joydir_y = 0;
+
+static void dpad_event(int code, boolean pressed)
+{
+	RawKeyInfo[code] = pressed;
+	send_agsevent(pressed ? AGSEVENT_KEY_PRESS : AGSEVENT_KEY_RELEASE, code);
+}
 #endif
 
 /*
@@ -238,24 +242,26 @@ static void sdl_getEvent(void) {
 			break;
 		case SDL_JOYBUTTONDOWN:
 			switch (e.jbutton.button) {
-			case 1: mouse_down(SDL_BUTTON_RIGHT); break; // Circle
-			case 2: mouse_down(SDL_BUTTON_LEFT);  break; // X
-			// TODO: if possible, use D-pad for menus instead of mouse
-			case 6: joydir_y =  1;                break; // Down
-			case 7: joydir_x = -1;                break; // Left
-			case 8: joydir_y = -1;                break; // Up
-			case 9: joydir_x =  1;                break; // Right
-			default:                              break; // Ignore others
+			case 1:  mouse_down(SDL_BUTTON_RIGHT);  break; // Circle
+			case 2:  mouse_down(SDL_BUTTON_LEFT);   break; // X
+			case 6:  dpad_event(KEY_DOWN,  true);   break; // Down
+			case 7:  dpad_event(KEY_LEFT,  true);   break; // Left
+			case 8:  dpad_event(KEY_UP,    true);   break; // Up
+			case 9:  dpad_event(KEY_RIGHT, true);   break; // Right
+			case 11: mouse_down(SDL_BUTTON_MIDDLE); break; // Start
+			default:                                break; // Ignore others
 			}
 			break;
 		case SDL_JOYBUTTONUP:
 			switch (e.jbutton.button) {
-			case 1: mouse_up(SDL_BUTTON_RIGHT, &m2b); break; // Circle
-			case 2: mouse_up(SDL_BUTTON_LEFT, &m2b);  break; // X
-			case 6: case 8: joydir_y = 0;             break; // Down/Up
-			case 7: case 9: joydir_x = 0;             break; // Down/Up
-			case 11: m2b = TRUE;                      break; // Start
-			default:                                  break; // Ignore others
+			case 1:  mouse_up(SDL_BUTTON_RIGHT, &m2b);  break; // Circle
+			case 2:  mouse_up(SDL_BUTTON_LEFT, &m2b);   break; // X
+			case 6:  dpad_event(KEY_DOWN,  false);      break; // Down
+			case 7:  dpad_event(KEY_LEFT,  false);      break; // Left
+			case 8:  dpad_event(KEY_UP,    false);      break; // Up
+			case 9:  dpad_event(KEY_RIGHT, false);      break; // Right
+			case 11: mouse_up(SDL_BUTTON_MIDDLE, &m2b); break; // Start
+			default:                                    break; // Ignore others
 			}
 			break;
 		case SDL_USEREVENT:
@@ -296,19 +302,6 @@ static void sdl_getEvent(void) {
 			break;
 		}
 	}
-#ifdef VITA
-	if (fabsf(joydir_x) > joystick_dead_zone || fabsf(joydir_y) > joystick_dead_zone) {
-		joy_time = sceKernelGetProcessTimeWide();
-		mousex = max(0, min(view_w-1, mousex + joydir_x * joystick_speed));
-		mousey = max(0, min(view_h-1, mousey + joydir_y * joystick_speed));
-		send_agsevent(AGSEVENT_MOUSE_MOTION, 0);
-		hide_cursor = FALSE;
-		sdl_dirty = TRUE;
-	} else if (!hide_cursor && sceKernelGetProcessTimeWide() - joy_time > 750000) {
-		hide_cursor = TRUE;
-		sdl_dirty = TRUE;
-	}
-#endif
 	if (had_input) {
 		cmd_count_of_prev_input = nact->cmd_count;
 	} else if (nact->cmd_count != cmd_count_of_prev_input) {
