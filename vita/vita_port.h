@@ -12,7 +12,7 @@
 #define DEBUGLEVEL_DEBUG 3
 
 #define PATH_MAX 2048 // probably OK?
-#define VITA_HOME "ux0:/xsystem35"
+#define VITA_HOME "ux0:/data/xsystem35"
 #define VITA_W 960
 #define VITA_H 544
 
