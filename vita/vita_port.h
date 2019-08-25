@@ -1,6 +1,7 @@
 #ifndef __VITA_PORT__
 #define __VITA_PORT__
 
+#ifdef DEBUG
 #include <debugnet.h>
 #undef NONE  // are
 #undef INFO  // you
@@ -10,6 +11,11 @@
 #define DEBUGLEVEL_INFO  1
 #define DEBUGLEVEL_ERROR 2
 #define DEBUGLEVEL_DEBUG 3
+#define DEBUG 1
+#else
+#define debugNetInit(addr, port, level)
+#define debugNetPrintf(level, format, ...) printf(format, ##__VA_ARGS__)
+#endif
 
 #define PATH_MAX 2048 // probably OK?
 #define VITA_HOME "ux0:/data/xsystem35"
