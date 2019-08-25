@@ -1,3 +1,54 @@
+# xsystem35-vita
+
+This is a port of [xsystem35-sdl2](https://github.com/kichikuou/xsystem35-sdl2) to the Playstation Vita. xsystem35 is an open-source implementation of AliceSoft's System 3.x game engine.
+
+## Building
+
+Make sure you have the Vita SDK installed and the `$VITASDK` environment variable set correctly.
+
+	mkdir -p out/vita
+	cd out/vita
+	cmake -DVITA=1 ../../
+	make
+
+Then copy the file `xsystem35.vpk` to your Vita and install it as you would any other homebrew.
+
+## Installing games
+
+Create a subdirectory under `ux0:data/xsystem35/` and copy all `.ald` and `.ain` files from the game directory into it.
+
+In order to get BGM, you must rip the CD audio from the game disk and create a playlist pointing to the files (see the section on BGM [here](https://haniwa.website/games/preparing-a-game-directory.html)). xsystem35-vita defaults to looking for a file named `playlist` in the game directory so it is not necessary to create a `.xsys35rc` file.
+
+E.g. the directory for (English) Kichikuou Rance should look something like this:
+
+    ux0:
+        data
+            xsystem35
+                Kichikuou Rance
+                    bgm
+                        kichiku_2.mp3
+                        kichiku_3.mp3
+                        ...
+                    KICHIKUGA.ALD
+                    KICHIKUGB.ALD
+                    KICHIKUSA.ALD
+                    KICHIKUWA.ALD
+                    System39.ain
+                    playlist
+
+where the file `playlist` contains:
+
+	(The first line in this file is ignored.)
+	bgm/kichiku_2.mp3
+	bgm/kichiku_3.mp3
+	...
+
+## Known Issues
+
+* *Startup time for some games (especially KR) is really bad.* This is caused by the game rendering a bunch of invisible text at startup (TTF font rendering on Vita is pretty slow). I have a plan to fix this (use system font rendering API).
+
+* *The game looks ugly/blurry.* The Vita has a vertical resolution of 544 pixels, whereas System 3.x games usually run at a slightly lower resolution (400 or 480). Slight upscaling like this inherently produces a lousy result. You can run games at their original resolution if your eyes start bleeding: just hit the Start button to open the menu and switch fullscreen off.
+
 # xsytem35-sdl2
 
 アリスソフトのゲームエンジン System3.x のフリー実装である xsystem35 を SDL2 に対応して、emscripten でコンパイルできるようにしたものです。
