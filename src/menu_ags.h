@@ -56,6 +56,21 @@ struct toggle {
 	boolean (*toggle)(boolean);
 };
 
+#define MSGBOX_MAX_LINES 128
+
+struct msgbox {
+	struct widget w;
+	int nr_lines;
+	char *lines[MSGBOX_MAX_LINES];
+	int bg_color;
+	int fg_color;
+	int frame_color;
+	int font_size;
+	int selection;
+	int nr_buttons;
+	struct label **buttons;
+};
+
 boolean menu_dirty;
 int default_bg_color;
 int default_fg_color;
@@ -68,13 +83,18 @@ void widget_handle_key(struct widget *w, BYTE key, boolean pressed);
 void widget_handle_mouse(struct widget *w, MyPoint cur, MyPoint prev);
 void widget_pack(struct widget *w);
 void widget_free(struct widget *w);
+
 void widget_stack_push(struct widget *w);
 void widget_stack_pop(void);
 struct widget *widget_stack_peek(void);
 void widget_stack_flush(void);
+void widget_stack_draw(void);
 
 struct menu *make_menu(void);
 void menu_append_entry(struct menu *m, struct widget *w);
+
+struct msgbox *make_msgbox(const char *message);
+void msgbox_add_button(struct msgbox *box, struct label *button);
 
 struct label *make_label(const char *msg, void (*activate)(struct widget*));
 

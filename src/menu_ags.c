@@ -13,6 +13,7 @@
 #include "nact.h"
 
 #define CHAR_RARROW "\x81\xa8"
+#define CHAR_LARROW "\x81\xa9"
 
 int default_bg_color = 255;
 int default_fg_color = 0;
@@ -49,6 +50,26 @@ static void activate_quit(struct widget *w)
 	nact->is_quit = TRUE;
 }
 
+static void activate_cancel(struct widget *w)
+{
+	widget_stack_pop();
+}
+
+static struct msgbox *make_quit_dialog(void)
+{
+	struct msgbox *box;
+	box = make_msgbox("Are you sure you want to quit?\nYou will lose any unsaved progress.");
+	msgbox_add_button(box, make_label("Quit", activate_quit));
+	msgbox_add_button(box, make_label("Cancel", activate_cancel));
+	widget_pack((struct widget*)box);
+	return box;
+}
+
+static void show_quit_dialog(struct widget *w)
+{
+	widget_stack_push((struct widget*)make_quit_dialog());
+}
+
 static void activate_return(struct widget *w)
 {
 	widget_stack_flush();
@@ -71,8 +92,8 @@ static struct menu *make_main_menu(void)
 	toggle->on = nact->sys_mouse_movesw;
 	menu_append_entry(menu, (struct widget*)toggle);
 
-	menu_append_entry(menu, (struct widget*)make_label (CHAR_RARROW " Quit", activate_quit));
-	menu_append_entry(menu, (struct widget*)make_label (CHAR_RARROW " Return", activate_return));
+	menu_append_entry(menu, (struct widget*)make_label (CHAR_RARROW " Quit", show_quit_dialog));
+	menu_append_entry(menu, (struct widget*)make_label (CHAR_LARROW " Return", activate_return));
 
 	widget_pack((struct widget*)menu);
 	return menu;
@@ -95,13 +116,8 @@ static int find_nearest_color(int r, int g, int b)
 	return nearest;
 }
 
-void menu_open(void) {
-	// only open once
-	if (nact->popupmenu_opened)
-		return;
-
-	nact->popupmenu_opened = TRUE;
-
+static void menu_start(void)
+{
 	DispInfo d;
 	ags_getViewAreaInfo(&d);
 	saved.region = ags_saveRegion(0, 0, d.width, d.height);
@@ -115,30 +131,51 @@ void menu_open(void) {
 	default_frame_color = find_nearest_color(255, 255, 255);
 
 	nact->ags.eventcb = NULL;
+	nact->popupmenu_opened = TRUE;
+}
 
+void menu_open(void)
+{
+	// only open once
+	if (nact->popupmenu_opened)
+		return;
+
+	menu_start();
 	widget_stack_push((struct widget*)make_main_menu());
 }
 
-void menu_quitmenu_open(void) {
+void menu_quitmenu_open(void)
+{
 	return;
 }
 
-boolean menu_inputstring(INPUTSTRING_PARAM *p) {
+boolean menu_inputstring(INPUTSTRING_PARAM *p)
+{
 	p->newstring = p->oldstring;
 	return TRUE;
 }
 
-boolean menu_inputstring2(INPUTSTRING_PARAM *p) {
+boolean menu_inputstring2(INPUTSTRING_PARAM *p)
+{
 	p->newstring = p->oldstring;
 	return TRUE;
 }
 
-boolean menu_inputnumber(INPUTNUM_PARAM *p) {
+boolean menu_inputnumber(INPUTNUM_PARAM *p)
+{
 	p->value = p->def;
 	return TRUE;
 }
 
-void menu_msgbox_open(char *msg) {
+void menu_msgbox_open(char *msg)
+{
+	if (!nact->popupmenu_opened)
+		menu_start();
+
+	struct msgbox *box = make_msgbox(msg);
+	msgbox_add_button(box, make_label("OK", activate_return));
+	widget_pack((struct widget*)box);
+	widget_stack_push((struct widget*)box);
 	return;
 }
 
@@ -153,7 +190,7 @@ void menu_widget_reinit(boolean reset_colortmap) {
 static MyPoint mouse_state;
 static boolean kbd_state[256];
 
-static void menu_close(void)
+static void menu_end(void)
 {
 	nact->popupmenu_opened = FALSE;
 	ags_restoreRegion(saved.region, 0, 0);
@@ -222,15 +259,17 @@ void menu_gtkmainiteration() {
 
 	struct widget *current;
 	while ((current = widget_stack_peek())) {
-		if (menu_dirty)
-			widget_draw(current);
+		if (menu_dirty) {
+			ags_putRegion(saved.region, 0, 0);
+			widget_stack_draw();
+		}
 		handle_input(current);
 		ags_updateFull();
 		WaitVsync();
 		nact->callback();
 	}
 
-	menu_close();
+	menu_end();
 	in_menu = FALSE;
 	return;
 }

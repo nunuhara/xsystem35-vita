@@ -8,7 +8,6 @@
 #include "key.h"
 #include "menu_ags.h"
 
-#define DEFAULT_FONT_SIZE 16
 #define WIDGET_STACK_MAX 16
 
 struct widget *widget_stack[WIDGET_STACK_MAX];
@@ -78,6 +77,13 @@ void widget_stack_flush(void)
 {
 	while (widget_stack_ptr >= 0) {
 		widget_stack_pop();
+	}
+}
+
+void widget_stack_draw(void)
+{
+	for (int i = 0; i <= widget_stack_ptr; i++) {
+		widget_draw(widget_stack[i]);
 	}
 }
 
@@ -242,6 +248,184 @@ void menu_append_entry(struct menu *m, struct widget *w)
 	m->nr_entries++;
 	m->entries = realloc(m->entries, m->nr_entries * sizeof(struct widget*));
 	m->entries[m->nr_entries-1] = w;
+}
+
+/*
+ * Message box widget.
+ */
+
+#define BUTTON_PAD 6
+
+static void msgbox_pack(struct widget *w)
+{
+	DispInfo d;
+	struct msgbox *box = (struct msgbox*)w;
+	int max_w = 0;
+	int btn_w = 0;
+	int btn_height = 0;
+	int msg_height = box->nr_lines * box->font_size;
+
+	// calculate required width for message
+	for (int i = 0; i < box->nr_lines; i++) {
+		max_w = max(max_w, strlen(box->lines[i]) * (box->font_size/2));
+	}
+
+	// calculate required width and height for buttons
+	btn_w = 0;
+	for (int i = 0; i < box->nr_buttons; i++) {
+		widget_pack(&box->buttons[i]->w);
+		btn_w += box->buttons[i]->w.geo.width + BUTTON_PAD;
+		btn_height = max(btn_height, box->buttons[i]->w.geo.height);
+	}
+	max_w = max(max_w, btn_w - BUTTON_PAD);
+
+	ags_getViewAreaInfo(&d);
+	w->geo.width = max_w + 4;
+	w->geo.height = msg_height + btn_height + BUTTON_PAD + 4;
+	w->geo.x = d.width/2 - w->geo.width/2;
+	w->geo.y = d.height/2 - w->geo.height/2;
+
+	// set button (x,y) coordinates
+	int x = w->geo.x + (w->geo.width/2 - btn_w/2);
+	for (int i = 0; i < box->nr_buttons; i++) {
+		box->buttons[i]->w.geo.x = x;
+		box->buttons[i]->w.geo.y = w->geo.y + msg_height + BUTTON_PAD + 2;
+		x += box->buttons[i]->w.geo.width + BUTTON_PAD;
+	}
+}
+
+static void msgbox_draw(struct widget *w)
+{
+	struct msgbox *box = (struct msgbox*)w;
+
+	draw_frameborder(w->geo, box->frame_color, box->bg_color);
+
+	// draw message
+	ags_setFont(FONT_GOTHIC, box->font_size);
+	for (int i = 0; i < box->nr_lines; i++) {
+		int y = w->geo.y + 2 + i*box->font_size;
+		int x = w->geo.x + (w->geo.width/2 - (strlen(box->lines[i]) * box->font_size/2)/2);
+		ags_drawString(x, y, box->lines[i], box->fg_color);
+	}
+
+	// draw buttons
+	for (int i = 0; i < box->nr_buttons; i++) {
+		struct widget *b = &box->buttons[i]->w;
+		MyRectangle *r = &box->buttons[i]->w.geo;
+		widget_draw(b);
+		ags_drawRectangle(r->x-2, r->y-2, r->width+4, r->height+4, box->fg_color);
+		if (i == box->selection) {
+			ags_drawRectangle(r->x-1, r->y-1, r->width+2, r->height+2, box->fg_color);
+		}
+	}
+}
+
+static int button_at(struct msgbox *box, int x, int y)
+{
+	if (ags_regionContains(&box->w.geo, x, y)) {
+		for (int i = 0; i < box->nr_buttons; i++) {
+			if (ags_regionContains(&box->buttons[i]->w.geo, x, y)) {
+				return i;
+			}
+		}
+	}
+	return -1;
+}
+
+static void msgbox_handle_key(struct widget *w, BYTE key, boolean pressed)
+{
+	MyPoint mouse;
+	int hovered;
+	struct msgbox *box = (struct msgbox*)w;
+
+	if (pressed) {
+		switch (key) {
+		case KEY_LEFT:
+			box->selection = max(0, box->selection - 1);
+			break;;
+		case KEY_RIGHT:
+			box->selection = min(box->nr_buttons - 1, box->selection + 1);
+			break;
+		default:
+			break;
+		}
+	} else {
+		switch (key) {
+		case KEY_MOUSE_LEFT:
+			sys_getMouseInfo(&mouse, FALSE);
+			hovered = button_at(box, mouse.x, mouse.y);
+			if (hovered >= 0) {
+				widget_activate((struct widget*)box->buttons[hovered]);
+			}
+			break;
+		case KEY_ENTER:
+			widget_activate((struct widget*)box->buttons[box->selection]);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static void msgbox_handle_mouse(struct widget *w, MyPoint cur, MyPoint prev)
+{
+	struct msgbox *box = (struct msgbox*)w;
+	int hovered = button_at(box, cur.x, cur.y);
+
+	if (hovered >= 0) {
+		if (hovered != box->selection)
+			menu_dirty = TRUE;
+		box->selection = hovered;
+	}
+}
+
+static void msgbox_free(struct widget *w)
+{
+	struct msgbox *box = (struct msgbox*)w;
+
+	for (int i = 0; i < box->nr_buttons; i++) {
+		widget_free((struct widget*)box->buttons[i]);
+	}
+	free(box->buttons);
+	free(box->lines[0]);
+	free(box);
+}
+
+struct msgbox *make_msgbox(const char *message)
+{
+	char *p, *msg = strdup(message);
+	struct msgbox *box = calloc(1, sizeof(struct msgbox));
+
+	// split message into lines
+	p = msg;
+	for (int i = 0; msg[i] && i < MSGBOX_MAX_LINES-1; i++) {
+		if (msg[i] == '\n') {
+			msg[i] = '\0';
+			box->lines[box->nr_lines++] = p;
+			p = msg + i + 1;
+		}
+	}
+	box->lines[box->nr_lines++] = p;
+
+	box->w.pack = msgbox_pack;
+	box->w.draw = msgbox_draw;
+	box->w.handle_key = msgbox_handle_key;
+	box->w.handle_mouse = msgbox_handle_mouse;
+	box->w.free = msgbox_free;
+
+	box->bg_color = default_bg_color;
+	box->fg_color = default_fg_color;
+	box->frame_color = default_frame_color;
+	box->font_size = default_font_size;
+
+	return box;
+}
+
+void msgbox_add_button(struct msgbox *box, struct label *button)
+{
+	box->nr_buttons++;
+	box->buttons = realloc(box->buttons, box->nr_buttons * sizeof(struct label*));
+	box->buttons[box->nr_buttons-1] = button;
 }
 
 /*
