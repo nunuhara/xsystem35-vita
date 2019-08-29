@@ -47,9 +47,27 @@
 
 #define DEBUG_SHOWSCOADR  sys_message("%d,%x: ", sl_getPage(), sl_getIndex())
 #ifdef DEBUG
-#define DEBUG_COMMAND_YET sys_nextdebuglv = 2, DEBUG_SHOWSCOADR, sys_message
-#define DEBUG_COMMAND     sys_nextdebuglv = 5, DEBUG_SHOWSCOADR, sys_message
-#define DEBUG_MESSAGE     sys_nextdebuglv = 6, sys_message
+
+#define DEBUG_COMMAND_YET(format, ...)				\
+	do {											\
+		sys_nextdebuglv = 2;						\
+		DEBUG_SHOWSCOADR;							\
+		sys_message(format, ##__VA_ARGS__);			\
+	} while (0)
+
+#define DEBUG_COMMAND(format, ...)				\
+	do {										\
+		sys_nextdebuglv = 5;					\
+		DEBUG_SHOWSCOADR;						\
+		sys_message(format, ##__VA_ARGS__);		\
+	} while (0)
+
+#define DEBUG_MESSAGE(format, ...)				\
+	do {										\
+		sys_nextdebuglv = 6;					\
+		sys_message(format, ##__VA_ARGS__);		\
+	} while (0)
+
 #else
 #define DEBUG_MESSAGE
 #define DEBUG_COMMAND
