@@ -224,6 +224,10 @@ else()
   endif ()
 endif()
 
+if (VITA)
+  set(SRC_JOYSTICK ${SRC_JOYSTICK} vita_joystick.c)
+endif()
+
 # Font
 
 if (X11_FOUND)

@@ -792,6 +792,56 @@ static void check_profile() {
 			fs_on = TRUE;
 		}
 	}
+#ifdef VITA
+	param = get_profile("joy_triangle");
+	if (param) {
+		vita_joystick_map(VITA_TRIANGLE, param);
+	}
+	param = get_profile("joy_circle");
+	if (param) {
+		vita_joystick_map(VITA_CIRCLE, param);
+	}
+	param = get_profile("joy_cross");
+	if (param) {
+		vita_joystick_map(VITA_CROSS, param);
+	}
+	param = get_profile("joy_square");
+	if (param) {
+		vita_joystick_map(VITA_SQUARE, param);
+	}
+	param = get_profile("joy_left_shoulder");
+	if (param) {
+		vita_joystick_map(VITA_LEFT_SHOULDER, param);
+	}
+	param = get_profile("joy_right_shoulder");
+	if (param) {
+		vita_joystick_map(VITA_RIGHT_SHOULDER, param);
+	}
+	param = get_profile("joy_down");
+	if (param) {
+		vita_joystick_map(VITA_DOWN, param);
+	}
+	param = get_profile("joy_left");
+	if (param) {
+		vita_joystick_map(VITA_LEFT, param);
+	}
+	param = get_profile("joy_up");
+	if (param) {
+		vita_joystick_map(VITA_UP, param);
+	}
+	param = get_profile("joy_right");
+	if (param) {
+		vita_joystick_map(VITA_RIGHT, param);
+	}
+	param = get_profile("joy_select");
+	if (param) {
+		vita_joystick_map(VITA_SELECT, param);
+	}
+	param = get_profile("joy_start");
+	if (param) {
+		vita_joystick_map(VITA_START, param);
+	}
+#endif
 }
 
 void sys_set_signalhandler(int SIG, void (*handler)(int)) {

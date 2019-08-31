@@ -42,26 +42,13 @@
 static void sdl_getEvent(void);
 static void keyEventProsess(SDL_KeyboardEvent *e, boolean bool);
 static int  check_button(void);
+static void send_agsevent(int type, int code);
 
 /* pointer の状態 */
 int mousex, mousey, mouseb;
 boolean RawKeyInfo[256];
 /* SDL Joystick */
 static int joyinfo=0;
-
-#ifdef VITA
-static void send_agsevent(int type, int code);
-extern void va_alarm_handler();
-
-float joydir_x = 0;
-float joydir_y = 0;
-
-static void dpad_event(int code, boolean pressed)
-{
-	RawKeyInfo[code] = pressed;
-	send_agsevent(pressed ? AGSEVENT_KEY_PRESS : AGSEVENT_KEY_RELEASE, code);
-}
-#endif
 
 /*
  * Translate touch screen coordinates to logical coordinates.
@@ -234,35 +221,11 @@ static void sdl_getEvent(void) {
 
 #ifdef VITA
 		case SDL_JOYAXISMOTION:
-			if (e.jaxis.axis == 0) {
-				joydir_x = e.jaxis.value/32768.0;
-			} else if (e.jaxis.axis == 1) {
-				joydir_y = e.jaxis.value/32768.0;
-			}
-			break;
+		case SDL_JOYBALLMOTION:
+		case SDL_JOYHATMOTION:
 		case SDL_JOYBUTTONDOWN:
-			switch (e.jbutton.button) {
-			case 1:  mouse_down(SDL_BUTTON_RIGHT);  break; // Circle
-			case 2:  mouse_down(SDL_BUTTON_LEFT);   break; // X
-			case 6:  dpad_event(KEY_DOWN,  true);   break; // Down
-			case 7:  dpad_event(KEY_LEFT,  true);   break; // Left
-			case 8:  dpad_event(KEY_UP,    true);   break; // Up
-			case 9:  dpad_event(KEY_RIGHT, true);   break; // Right
-			case 11: mouse_down(SDL_BUTTON_MIDDLE); break; // Start
-			default:                                break; // Ignore others
-			}
-			break;
 		case SDL_JOYBUTTONUP:
-			switch (e.jbutton.button) {
-			case 1:  mouse_up(SDL_BUTTON_RIGHT, &m2b);  break; // Circle
-			case 2:  mouse_up(SDL_BUTTON_LEFT, &m2b);   break; // X
-			case 6:  dpad_event(KEY_DOWN,  false);      break; // Down
-			case 7:  dpad_event(KEY_LEFT,  false);      break; // Left
-			case 8:  dpad_event(KEY_UP,    false);      break; // Up
-			case 9:  dpad_event(KEY_RIGHT, false);      break; // Right
-			case 11: mouse_up(SDL_BUTTON_MIDDLE, &m2b); break; // Start
-			default:                                    break; // Ignore others
-			}
+			vita_joystick_event(&e);
 			break;
 		case SDL_USEREVENT:
 			va_alarm_handler();
