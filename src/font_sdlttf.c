@@ -4,6 +4,10 @@
 #include <math.h>
 #include <SDL.h>
 #include <SDL_ttf.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "portab.h"
 #include "system.h"
@@ -48,6 +52,27 @@ static FontTable *font_lookup(int size, int type) {
 	return NULL;
 }
 
+static TTF_Font *font_open(const char *file, int ptsize, long index) {
+	int fd = open(file, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+	struct stat sb;
+	if (fstat(fd, &sb) < 0) {
+		close(fd);
+		return NULL;
+	}
+	void *addr = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	close(fd);
+	if (addr == MAP_FAILED)
+		return NULL;
+	SDL_RWops *rw = SDL_RWFromConstMem(addr, sb.st_size);
+	if (rw == NULL) {
+		munmap(addr, sb.st_size);
+		return NULL;
+	}
+	return TTF_OpenFontIndexRW(rw, 1 /* freesrc */, ptsize, index);
+}
+
 static void font_sdlttf_sel_font(int type, int size) {
 	FontTable *tbl;
 
@@ -55,7 +80,7 @@ static void font_sdlttf_sel_font(int type, int size) {
 	if (NULL == (tbl = font_lookup(size, type))) {
 		TTF_Font *fs;
 		
-		fs = TTF_OpenFontIndex(PATH(this->name[type]), size, this->face[type]);
+		fs = font_open(PATH(this->name[type]), size, this->face[type]);
 		
 		if (fs == NULL) {
 			WARNING("%s is not found:\n", PATH(this->name[type]));
