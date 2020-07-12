@@ -36,7 +36,7 @@
 #include "nact.h"
 #include "selection.h"
 #include "message.h"
-#include "imput.h"
+#include "input.h"
 #include "menu.h"
 
 /*
@@ -52,8 +52,8 @@ MG コマンド: 表示時の ZH に依存
 */
 
 /* defined in hankaku.c */
-extern BYTE *zen2han(BYTE *src);
-extern BYTE *han2zen(BYTE *src);
+extern BYTE *zen2han(const BYTE *src);
+extern BYTE *han2zen(const BYTE *src);
 /* defined by hankan2sjis.c */
 extern char *hankana2sjis(int index);
 /* defined by cmd_check.c */
@@ -124,8 +124,8 @@ char* sys_getConvString(char term) {
 }
 
 /* 選択肢・通常メッセージ振り分け */
-void sys_addMsg(char *str) {
-	char *msg = NULL;
+void sys_addMsg(const char *str) {
+	const char *msg = NULL;
 
 	switch(msg_msgHankakuMode) {
 	case 0:
@@ -153,7 +153,7 @@ void sys_addMsg(char *str) {
 	}
 	
 	if (msg && msg_msgHankakuMode < 2) {
-		free(msg);
+		free((char *)msg);
 	}
 }
 
@@ -190,15 +190,15 @@ void nact_main() {
 	nact->wait_vsync = FALSE;
 	
 	while (!nact->is_quit) {
-		for (int cnt = 0; !nact->wait_vsync && cnt < 10000; cnt++) {
+		for (int cnt = 0; cnt < 10000; cnt++) {
+			if (nact->wait_vsync || nact->popupmenu_opened || nact->is_quit)
+				break;
 			DEBUG_MESSAGE("%d:%x\n", sl_getPage(), sl_getIndex());
-			if (!nact->popupmenu_opened) {
-				int c0 = checkMessage();
-				check_command(c0);
-				nact->cmd_count++;
-			}
-			nact->callback();
+			int c0 = checkMessage();
+			check_command(c0);
+			nact->cmd_count++;
 		}
+		nact->callback();
 #ifndef __EMSCRIPTEN__
 		if (!nact->is_message_locked)
 			sys_getInputInfo();

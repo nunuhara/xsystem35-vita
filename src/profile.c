@@ -145,7 +145,7 @@ int load_profile(void)
 		sprintf(profile_path, "%s/%s", home_dir, RC_NAME);
 		load_rc_file(profile_path);
 	}
-	load_rc_file(RC_NAME);
+	return load_rc_file(RC_NAME);
 }
 
 char *get_profile(const char *name)

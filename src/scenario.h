@@ -26,7 +26,7 @@
 
 #include "portab.h"
 
-extern boolean sl_init();
+extern boolean scenario_init();
 extern boolean sl_reinit();
 extern int sl_getc();
 extern int sl_getw();

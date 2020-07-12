@@ -35,9 +35,10 @@
 #include "sdl_private.h"
 #include "key.h"
 #include "menu.h"
-#include "imput.h"
+#include "input.h"
 #include "joystick.h"
 #include "sdl_input.c"
+#include "texthook.h"
 
 static void sdl_getEvent(void);
 static void keyEventProsess(SDL_KeyboardEvent *e, boolean bool);
@@ -164,6 +165,9 @@ static void sdl_getEvent(void) {
 				break;
 			}
 			break;
+		case SDL_APP_DIDENTERFOREGROUND:
+			sdl_dirty = TRUE;
+			break;
 		case SDL_KEYDOWN:
 			keyEventProsess(&e.key, TRUE);
 			break;
@@ -227,9 +231,6 @@ static void sdl_getEvent(void) {
 		case SDL_JOYBUTTONUP:
 			vita_joystick_event(&e);
 			break;
-		case SDL_USEREVENT:
-			va_alarm_handler();
-			break;
 #else
 #if HAVE_SDLJOY
 		case SDL_JOYAXISMOTION:
@@ -261,7 +262,7 @@ static void sdl_getEvent(void) {
 #endif // HAVE_SDLJOY
 #endif // VITA
 		default:
-			printf("ev %x\n", e.type);
+			NOTICE("ev %x\n", e.type);
 			break;
 		}
 	}
@@ -281,6 +282,7 @@ static void sdl_getEvent(void) {
 int sdl_keywait(int msec, boolean cancel) {
 	int key=0, n;
 	int end = msec == INT_MAX ? INT_MAX : get_high_counter(SYSTEMCOUNTER_MSEC) + msec;
+	texthook_keywait();
 	
 	while ((n = end - get_high_counter(SYSTEMCOUNTER_MSEC)) > 0) {
 		if (n <= 16)

@@ -71,11 +71,11 @@ struct msgbox {
 	struct label **buttons;
 };
 
-boolean menu_dirty;
-int default_bg_color;
-int default_fg_color;
-int default_frame_color;
-int default_font_size;
+extern boolean menu_dirty;
+extern int default_bg_color;
+extern int default_fg_color;
+extern int default_frame_color;
+extern int default_font_size;
 
 void widget_activate(struct widget *w);
 void widget_draw(struct widget *w);

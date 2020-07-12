@@ -37,7 +37,7 @@
 #define ARRAYVAR_PAGEMAX 256
 
 typedef struct {
-	int max;
+	int size;
 	boolean saveflag;
 	int *value;
 } arrayVarBufferStruct;
@@ -48,21 +48,23 @@ typedef struct {
 	int offset;
 } arrayVarStruct;
 
-extern int *sysVar;
-extern arrayVarStruct *sysVarAttribute;
-extern arrayVarBufferStruct *arrayVarBuffer;
+extern int sysVar[];
+extern arrayVarStruct sysVarAttribute[];
+extern arrayVarBufferStruct arrayVarBuffer[];
 extern double longVar[];
-extern boolean v_allocateArrayBuffer(int , int , boolean );
-extern boolean v_defineArrayVar(int , int *, int , int );
-extern boolean v_releaseArrayVar(int );
+extern boolean v_allocateArrayBuffer(int page, int size, boolean saveflag);
+extern boolean v_defineArrayVar(int datavar, int *pointvar, int offset, int page);
 extern boolean v_releaseArrayVar(int datavar);
-extern int v_getArrayBufferCnt(int page);
 extern boolean v_getArrayBufferStatus(int page);
 extern void v_initStringVars(int ,int );
 extern boolean v_initVars();
-extern char *v_strcpy(int no, const char *str);
-extern char *v_strcat(int no, const char *str);
+extern void v_strcpy(int no, const char *str);
+extern void v_strncpy(int dstno, int dstpos, int srcno, int srcpos, int len);
+extern void v_strcat(int no, const char *str);
 extern size_t v_strlen(int no);
-extern char *v_str(int no);
+extern int v_strstr(int no, int start, const char *str);
+extern void v_strFromVars(int no, const int *vars);
+extern int v_strToVars(int no, int *vars);
+extern const char *v_str(int no);
 
 #endif /* !__VARIABLE__ */

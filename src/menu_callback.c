@@ -29,7 +29,7 @@
 #include "menu_callback.h"
 #include "menu_gui.h"
 #include "nact.h"
-#include "imput.h"
+#include "input.h"
 #include "s39init.h"
 
 boolean menu_ok_exit;   /* exit window で OK が押されたかどうか */
@@ -50,7 +50,7 @@ GtkWidget *menu_label_msgbox;
 GtkWidget *menu_spinbutton;
 GtkWidget *menu_textentry;
 GtkWidget *menu_textentry2;
-gchar     *menu_textentry_string;
+const gchar *menu_textentry_string;
 
 GtkWidget *menu_window_popup; /* popup menu */
 GtkWidget *menu_window_exit;  /* exit window */

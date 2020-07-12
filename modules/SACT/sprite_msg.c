@@ -32,7 +32,7 @@
 #include "counter.h"
 #include "ags.h"
 #include "nact.h"
-#include "imput.h"
+#include "input.h"
 #include "sact.h"
 #include "sprite.h"
 #include "ngraph.h"
@@ -188,7 +188,7 @@ static int setupmark(int wNum1, int wNum2, struct markinfo *minfo) {
     
   @param msg: 追加する文字列
 */
-void smsg_add(char *msg) {
+void smsg_add(const char *msg) {
 	int len;
 	
 	if (msg[0] == '\0') return;
@@ -392,10 +392,10 @@ void smsg_clear(int wNum) {
 
 /*
   出力中の文字列があるかチェック
-  @return: なし(0) , あり(1)
+  @return: なし(1) , あり(0)
  */
 int smsg_is_empty() {
-	return (sact.msgbuf[0] != '\0');
+	return (sact.msgbuf[0] == '\0');
 }
 
 /*
@@ -471,7 +471,7 @@ int smsg_update(sprite_t *sp) {
 	
 	gre_BlendUseAMap(sf0, dx, dy, sf0, dx, dy, sp->u.msg.canvas, sx, sy, w, h, sp->u.msg.canvas, sx, sy, sp->blendrate);
 	
-	WARNING("do update no=%d, sx=%d, sy=%d, w=%d, h=%d, dx=%d, dy=%d\n",
+	SACT_DEBUG("do update no=%d, sx=%d, sy=%d, w=%d, h=%d, dx=%d, dy=%d\n",
 		sp->no, sx, sy, w, h, dx, dy);
 	
 	return OK;

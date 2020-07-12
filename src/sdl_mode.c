@@ -75,7 +75,9 @@ void sdl_setWindowSize(int x, int y, int w, int h) {
 	view_w = w;
 	view_h = h;
 	
+#ifndef __ANDROID__
 	SDL_SetWindowSize(sdl_window, w, h);
+#endif
 	if (sdl_display)
 		SDL_FreeSurface(sdl_display);
 	if (sdl_texture)

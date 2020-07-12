@@ -53,7 +53,7 @@ extern void sdl_setPallet(Pallet256 *pal, int src, int cnt);
 extern void sdl_drawRectangle(int x, int y, int w, int h, int cl);
 extern void sdl_fillRectangle(int x, int y, int w, int h, unsigned long c);
 extern void sdl_drawLine(int x1, int y1, int x2, int y2, unsigned long col);
-extern int  sdl_drawString(int x, int y, char *msg, unsigned long col);
+extern int  sdl_drawString(int x, int y, const char *msg, unsigned long col);
 extern void sdl_copyArea(int sx,int sy, int w, int h, int dx, int dy);
 extern void sdl_drawTT(int x,int y,int w,int h,const char *bitmap,int ww, boolean antialiased);
 extern void sdl_copyAreaSP(int sx, int sy, int w, int h, int dx, int dy, int sp);
@@ -102,7 +102,6 @@ extern void sdl_mainIteration();
 extern boolean RawKeyInfo[];
 extern void sdl_sleep(int msec);
 extern void sdl_wait_vsync();
-extern void sdl_sync();
 
 /* 初期化関係 */
 #define GraphicsInitilize() sdl_Initilize()
@@ -116,7 +115,7 @@ extern void sdl_sync();
 #define GetDIB() sdl_getDIB()
 
 /* 画面更新 */
-#define DspDeviceSync() sdl_sync()
+#define DspDeviceSync()
 #define UpdateArea(src,dst) sdl_updateArea((src),(dst))
 #define FullScreen(on) sdl_FullScreen(on)
 

@@ -22,6 +22,7 @@
 /* $Id: ndd.c,v 1.2 2003/11/09 15:06:12 chikama Exp $ */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "portab.h"
 #include "ags.h"
@@ -31,7 +32,7 @@
 #include "music.h"
 #include "counter.h"
 #include "ngraph.h"
-#include "imput.h"
+#include "input.h"
 
 // 0: AliceSoft
 // 1: Opening

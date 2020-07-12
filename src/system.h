@@ -69,6 +69,12 @@
 #define SYSERROR(format, ...) \
 	sys_error("*ERROR*(%s): " format, __func__, ##__VA_ARGS__)
 
+#define SACT_DEBUG(format, ...) \
+	do {										\
+		sys_nextdebuglv = 5;					\
+		sys_message("%s: " format, __func__, ##__VA_ARGS__);		\
+	} while (0)
+
 extern void _sys_error(void);
 extern void sys_exit(int code);              /* exit system with code */
 extern void sys_reset();
@@ -100,9 +106,12 @@ extern int  sys_nextdebuglv;                 /* message level */
 #define NOTICE            sys_nextdebuglv = 2, sys_message
 
 #define WARNING           sys_nextdebuglv = 1, \
-sys_message("*WARNING*(%s): ", __func__), sys_message
+                          sys_message("*WARNING*(%s): ", __func__), sys_message
 
 #define SYSERROR          fprintf(stderr, "*ERROR*(%s): ", __func__), sys_error
+
+#define SACT_DEBUG        sys_nextdebuglv = 5, \
+                          sys_message("%s: ", __func__), sys_message
 
 #endif // VITA
 #endif /* !__SYSTEM__ */

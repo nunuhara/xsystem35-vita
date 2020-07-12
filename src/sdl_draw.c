@@ -39,7 +39,7 @@
 #include "ags.h"
 #include "image.h"
 #include "nact.h"
-#include "imput.h"
+#include "input.h"
 
 static int fadestep[256] =
 {0,1,3,4,6,7,9,10,12,14,15,17,18,20,21,23,25,26,28,29,31,32,34,36,37,39,40,
@@ -515,7 +515,7 @@ static void sdl_drawAntiAlias_8bpp(int dstx, int dsty, agsurface_t *src, unsigne
 	SDL_UnlockSurface(sdl_dib);
 }
 
-int sdl_drawString(int x, int y, char *msg, unsigned long col) {
+int sdl_drawString(int x, int y, const char *msg, unsigned long col) {
 	int w;
 
 	sdl_pal_check();

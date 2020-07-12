@@ -34,6 +34,8 @@
 #define FONT_GOTHIC (0)
 #define FONT_MINCHO (1)
 
+struct agsurface;
+
 struct _FONT {
 	
 	boolean antialiase_on;
@@ -44,13 +46,13 @@ struct _FONT {
 	
 	void (*sel_font)(int type, int size);
 	
-	void *(*get_glyph)(unsigned char *str);
+	struct agsurface *(*get_glyph)(const unsigned char *str);
 	
-	int (*draw_glyph)(int x, int y, unsigned char *str, int col);
+	int (*draw_glyph)(int x, int y, const unsigned char *str, int col);
 	
 	boolean (*self_drawable)();
 	
-	int (*codeconv[FONTTYPEMAX])(unsigned char **msg);
+	int (*codeconv[FONTTYPEMAX])(const unsigned char **msg);
 };
 
 typedef struct _FONT FONT;
@@ -72,9 +74,7 @@ extern FONT *font_x11_new();
 /* デフォルトのフォント名 */
 #define FONT_DEFAULTNAME_X "-*-*-medium-r-normal--%d-*-*-*-c-*-jisx0208.1983-0,-*-*-medium-r-normal--%d-*-*-*-c-*-jisx0201.1976-0,*"
 
-#define FONT_DEFAULTNAME_TTF "/usr/share/fonts/TrueType/mincho.ttc"
-
-//
+// Font devices
 typedef enum {
 	FONT_X11,
 	FONT_FT2,

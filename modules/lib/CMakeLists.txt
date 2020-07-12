@@ -1,5 +1,3 @@
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
 add_library(graph STATIC
   graph.c
   surface.c
@@ -26,8 +24,10 @@ add_library(graph STATIC
   )
 
 add_library(alk STATIC alk.c)
+target_compile_options(alk PRIVATE -Wno-pointer-sign)
 
 add_library(drawtext STATIC drawtext.c)
+target_compile_options(drawtext PRIVATE -Wno-pointer-sign)
 
 add_library(list STATIC list.c)
 
@@ -35,3 +35,7 @@ target_include_directories(graph PUBLIC .)
 target_include_directories(alk PUBLIC .)
 target_include_directories(drawtext PUBLIC .)
 target_include_directories(list PUBLIC .)
+
+add_executable(lib_test list_test.c)
+target_link_libraries(lib_test PRIVATE list)
+add_test(NAME lib_test COMMAND lib_test)

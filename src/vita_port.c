@@ -28,6 +28,8 @@
 #include <psp2/kernel/sysmem.h>
 #include "system.h"
 
+SceUInt64 _process_time;
+
 // XXX: normal malloc implementation has too small heap size for mmap
 void *mmap_malloc(size_t size)
 {

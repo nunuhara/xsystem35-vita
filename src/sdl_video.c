@@ -117,10 +117,24 @@ static void window_init(void) {
 #endif // VITA
 		);
 	
+#ifdef __EMSCRIPTEN__
+	// Stop SDL from calling emscripten_sleep() in functions that are called
+	// indirectly, which does not work with ASYNCIFY_IGNORE_INDIRECT=1. For
+	// details, see https://github.com/emscripten-core/emscripten/issues/10746.
+	SDL_SetHint(SDL_HINT_EMSCRIPTEN_ASYNCIFY, "0");
+#endif
+
+#ifdef __ANDROID__
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+	SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+	Uint32 flags = SDL_WINDOW_FULLSCREEN;
+#else
+	Uint32 flags = SDL_WINDOW_RESIZABLE;
+#endif
 	sdl_window = SDL_CreateWindow("XSystem3.5 Version "VERSION,
 								  SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 								  SYS35_DEFAULT_WIDTH, SYS35_DEFAULT_HEIGHT,
-								  SDL_WINDOW_RESIZABLE);
+								  flags);
 	sdl_renderer = SDL_CreateRenderer(sdl_window, -1, 0);
 }
 

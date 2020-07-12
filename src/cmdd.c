@@ -28,26 +28,26 @@
 
 void commandDC() {
 	int page = getCaliValue();
-	int size = getCaliValue();
+	int maxindex = getCaliValue();
 	int save = getCaliValue();
 	boolean bool;
 	
-	bool = v_allocateArrayBuffer(page , size, save == 0 ? false : true);
+	bool = v_allocateArrayBuffer(page, maxindex + 1, save == 0 ? false : true);
 	if(!bool) {
 		WARNING("commandDC(): Array allocate failed\n");
 	}
-	DEBUG_COMMAND("DC %d,%d,%d:\n", page, size, save);
+	DEBUG_COMMAND("DC %d,%d,%d:\n", page, maxindex, save);
 }
 
 void commandDI() {
 	int page      = getCaliValue();
+	int *var_use  = getCaliVariable();
 	int *var_size = getCaliVariable();
-	int *var_save = getCaliVariable();
 	
-	*var_size = v_releaseArrayVar(page);
-	*var_save = v_getArrayBufferCnt(page) == true ? 1 : 0;
+	*var_use = v_getArrayBufferStatus(page);
+	*var_size = arrayVarBuffer[page - 1].size & 0xffff;
 
-	DEBUG_COMMAND("DI %d,%p,%p:\n", page, var_size, var_save);
+	DEBUG_COMMAND("DI %d,%p,%p:\n", page, var_use, var_size);
 }
 
 void commandDS() {
@@ -76,10 +76,20 @@ void commandDR() {
 
 void commandDF() {
 	int *data_var = getCaliVariable();
+	int varno     = preVarNo;
 	int cnt       = getCaliValue();
 	int data      = getCaliValue();
 	
 	DEBUG_COMMAND("DF %p,%d,%d:\n", data_var, cnt, data);
+
+	const arrayVarStruct* array = &sysVarAttribute[varno];
+	if (array->page) {
+		int maxlen = arrayVarBuffer[array->page - 1].size - array->offset - *array->pointvar;
+		if (cnt > maxlen) {
+			WARNING("%03d:%05x: count exceeds array boundary (%d > %d)\n", sl_getPage(), sl_getIndex(), cnt, maxlen);
+			cnt = maxlen;
+		}
+	}
 
 	while (cnt--) {
 		*data_var = data; data_var++;

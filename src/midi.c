@@ -30,12 +30,15 @@
 #include "midi.h"
 
 static char *dev;
-static char *player;
 static char default_mode = 'e';
 static int subdev = -1;
 
 #ifdef __EMSCRIPTEN__
 extern mididevice_t midi_emscripten;
+#endif
+
+#ifdef __ANDROID__
+extern mididevice_t midi_android;
 #endif
 
 #ifdef ENABLE_MIDI_SDLMIXER
@@ -59,11 +62,15 @@ int midi_init(mididevice_t *midi) {
 		break;
 	case 'e':
 #ifdef __EMSCRIPTEN__
-		ret = midi_emscripten.init(player, 0);
+		ret = midi_emscripten.init(NULL, 0);
 		memcpy(midi, &midi_emscripten, sizeof(mididevice_t));
 #endif
+#ifdef __ANDROID__
+		ret = midi_android.init(NULL, 0);
+		memcpy(midi, &midi_android, sizeof(mididevice_t));
+#endif
 #ifdef ENABLE_MIDI_SDLMIXER
-		ret = midi_sdlmixer.init(player, 0);
+		ret = midi_sdlmixer.init(NULL, 0);
 		memcpy(midi, &midi_sdlmixer, sizeof(mididevice_t));
 #endif
 		break;
@@ -72,12 +79,6 @@ int midi_init(mididevice_t *midi) {
 	}
 	
 	return ret;
-}
-
-void midi_set_playername(char *name) {
-	if (player) free(player);
-	if (0 == strcmp("none", name)) player = NULL;
-	else                           player = strdup(name);
 }
 
 void midi_set_devicename(char *name) {

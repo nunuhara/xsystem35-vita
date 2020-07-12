@@ -94,8 +94,38 @@ static void font_sdlttf_sel_font(int type, int size) {
 	}
 }
 
-static void *font_sdlttf_get_glyph(unsigned char *msg) {
-	return NULL;
+static agsurface_t *font_sdlttf_get_glyph(const unsigned char *msg) {
+	static SDL_Surface *fs;
+	static agsurface_t result;
+
+	if (!fontset)
+		return NULL;
+	if (fs) {
+		SDL_FreeSurface(fs);
+		fs = NULL;
+	}
+
+	BYTE* conv = sjis2lang(msg);
+
+	SDL_Color color = {255, 255, 255, 0};
+	if (this->antialiase_on) {
+		fs = TTF_RenderUTF8_Shaded(fontset->id, conv, color, color);
+	} else {
+		fs = TTF_RenderUTF8_Solid(fontset->id, conv, color);
+	}
+	free(conv);
+	if (!fs) {
+		WARNING("Text rendering failed: %s\n", TTF_GetError());
+		return NULL;
+	}
+
+	result.depth = fs->format->BitsPerPixel;
+	result.bytes_per_pixel = fs->format->BytesPerPixel;
+	result.bytes_per_line = fs->pitch;
+	result.pixel = fs->pixels;
+	result.width = fs->w;
+	result.height = fs->h;
+	return &result;
 }
 
 // SDL can't blit ARGB to an indexed bitmap properly, so we do it ourselves.
@@ -137,13 +167,15 @@ static void sdl_drawAntiAlias_8bpp(int dstx, int dsty, SDL_Surface *src, unsigne
 	SDL_UnlockSurface(sdl_dib);
 }
 
-static int font_sdlttf_draw_glyph(int x, int y, unsigned char *str, int cl) {
+static int font_sdlttf_draw_glyph(int x, int y, const unsigned char *str, int cl) {
 	SDL_Surface *fs;
 	SDL_Rect r_src, r_dst;
 	int w, h, maxy;
 	BYTE *conv;
 	
 	if (!*str)
+		return 0;
+	if (!fontset)
 		return 0;
 	
 	conv = sjis2lang(str);

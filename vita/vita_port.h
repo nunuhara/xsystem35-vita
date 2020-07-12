@@ -43,7 +43,7 @@
 #include <psp2/kernel/processmgr.h>
 #include <SDL.h>
 
-SceUInt64 _process_time;
+extern SceUInt64 _process_time;
 
 enum {
 	VITA_TRIANGLE       = 0,

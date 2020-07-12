@@ -4,7 +4,7 @@
 #include "portab.h"
 #include "system.h"
 #include "ags.h"
-#include "imput.h"
+#include "input.h"
 #include "key.h"
 #include "menu_ags.h"
 

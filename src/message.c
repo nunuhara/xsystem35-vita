@@ -32,9 +32,10 @@
 #include "xsystem35.h"
 #include "message.h"
 #include "variable.h"
-#include "imput.h"
+#include "input.h"
 #include "ags.h"
 #include "nact.h"
+#include "texthook.h"
 
 /* ショートカット */
 #define msg nact->msg
@@ -57,7 +58,7 @@ static boolean nextLineIsAfterKaigyou = FALSE;
 
 /* Private Methods */
 static void drawLineFrame(Bcom_WindowInfo *info);
-static void copyMsgToStrVar(char *m);
+static void copyMsgToStrVar(const char *m);
 static void msgget_at_r();
 static void msgget_at_a();
 
@@ -107,7 +108,7 @@ void msg_setStringDecorationType(int type) {
 	msgDecorateType = type;
 }
 
-void msg_putMessage(char *m) {
+void msg_putMessage(const char *m) {
 	int         w;
 	MyRectangle adj;
 	
@@ -116,6 +117,8 @@ void msg_putMessage(char *m) {
 		msg_nextPage(TRUE);
 	}
 	
+	texthook_message(m);
+
 	/* 表示文字列を文字列変数にコピーする */
 	if (msg.mg_getString) {
 		copyMsgToStrVar(m);
@@ -127,6 +130,7 @@ void msg_putMessage(char *m) {
 	ags_setFont(msg.MsgFont, msg.MsgFontSize);
 	switch(msgDecorateType) {
 	case 0:
+	default:
 		adj.x = 0; adj.y = 0; adj.width = 0; adj.height = 0;
 		break;
 	case 1:
@@ -142,6 +146,12 @@ void msg_putMessage(char *m) {
 		adj.x = 0; adj.y = 0; adj.width = 1; adj.height = 1;
 		break;
 	case 4:
+		ags_drawString(msgcur.x -1, msgcur.y, m, msgDecorateColor);
+		ags_drawString(msgcur.x +1, msgcur.y, m, msgDecorateColor);
+		ags_drawString(msgcur.x, msgcur.y -1, m, msgDecorateColor);
+		ags_drawString(msgcur.x, msgcur.y +1, m, msgDecorateColor);
+		adj.x = -1; adj.y = -1; adj.width = 2; adj.height = 2;
+		break;
 	case 6:
 		ags_drawString(msgcur.x +1, msgcur.y, m, msg.MsgFontColor);
 		adj.x = 0; adj.y = 0; adj.width = 1; adj.height = 0;
@@ -154,11 +164,13 @@ void msg_putMessage(char *m) {
 		ags_drawString(msgcur.x +1, msgcur.y +1, m, msg.MsgFontColor);
 		adj.x = 0; adj.y = 0; adj.width = 1; adj.height = 1;
 		break;
-	case 9:
 	case 10:
-		adj.x = 0; adj.y = 0; adj.width = 0; adj.height = 0;
-		break;
-	default:
+		ags_drawString(msgcur.x -1, msgcur.y   , m, msgDecorateColor);
+		ags_drawString(msgcur.x +1, msgcur.y   , m, msgDecorateColor);
+		ags_drawString(msgcur.x   , msgcur.y -1, m, msgDecorateColor);
+		ags_drawString(msgcur.x   , msgcur.y +1, m, msgDecorateColor);
+		ags_drawString(msgcur.x +2, msgcur.y +2, m, msgDecorateColor);
+		adj.x = -1; adj.y = -1; adj.width = 3; adj.height = 3;
 		break;
 	}
 	
@@ -188,6 +200,8 @@ void msg_putMessage(char *m) {
 }
 
 void msg_nextLine() {
+	texthook_newline();
+
 	// puts("next Line");
 	if (msg.mg_getString) {
 		msgget_at_r();
@@ -203,6 +217,8 @@ void msg_nextLine() {
 }
 
 void msg_nextPage(boolean innerclear) {
+	texthook_nextpage();
+
 	// puts("next Page");
 	if (innerclear) {
 		if (msg.WinBackgroundTransparent == 255) {
@@ -297,6 +313,7 @@ void msg_openWindow(int W, int C1, int C2, int N, int M) {
 }
 
 void msg_setMessageLocation(int x, int y) {
+	texthook_newline();
 	msgcur.x = x;
 	msgcur.y = y;
 	nextLineIsAfterKaigyou = FALSE;
@@ -331,7 +348,7 @@ static void drawLineFrame(Bcom_WindowInfo *i) {
 	ags_updateArea(i->x -8, i->y -8, i->width +16, i->height +16);
 }
 
-static void copyMsgToStrVar(char *m) {
+static void copyMsgToStrVar(const char *m) {
 	if (v_strlen(msg.mg_curStrVarNo -1) == 0) {
 		v_strcpy(msg.mg_curStrVarNo -1, m);
 	} else {

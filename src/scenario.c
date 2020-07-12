@@ -80,7 +80,7 @@ static void showStackData() {
 	if (fp == NULL) return;
 	
 	fprintf(fp, "Page = %d, index = %x\n", sl_getPage(), sl_getIndex());
-	fprintf(fp, "stack top = %p, cur = %p, size=%d, index=%d\n", sco_stackbuf, sco_stackindex, sco_stacksize, (sco_stackindex - sco_stackbuf));
+	fprintf(fp, "stack top = %p, cur = %p, size=%d, index=%td\n", sco_stackbuf, sco_stackindex, sco_stacksize, (sco_stackindex - sco_stackbuf));
 	
 	var = sco_stackbuf;
 	for (i = 0; i < sco_stacksize; i+=10) {
@@ -96,7 +96,7 @@ static void showStackData() {
 #endif
 
 /* initilize stack and load first scenario data */
-boolean sl_init() {
+boolean scenario_init() {
 	sco_stackbuf = calloc(sco_stacksize, sizeof(int));
 	if (sco_stackbuf == NULL)
 		NOMEMERR();
@@ -113,7 +113,7 @@ boolean sl_init() {
 /* UD 0 command, reinitilized scenario loader */
 boolean sl_reinit() {
 	free(sco_stackbuf);
-	return sl_init();
+	return scenario_init();
 }
 
 static void sl_push(int type, int *val, int cnt) {

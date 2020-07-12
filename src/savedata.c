@@ -185,7 +185,8 @@ int save_save_str_with_file(char *filename, int start, int cnt) {
 	*tmp = 0;
 	for (i = 0; i < cnt; i++) {
 		strncpy(tmp, v_str(start + i - 1), strvar_len - 1);
-		tmp += v_strlen(start + i - 1) + 1;
+		tmp[strvar_len - 1] = '\0';
+		tmp += strlen(tmp) + 1;
 	}
 	
 	
@@ -241,8 +242,8 @@ int save_load_str_with_file(char *filename, int start, int cnt) {
 		status = SAVE_LOADOK;
 	}
 	for (i = 0; i < cnt; i++) {
-		strncpy(v_str(start + i - 1), tmp, strvar_len);
-		tmp += v_strlen(start + i - 1) + 1;
+		v_strcpy(start + i - 1, tmp);
+		tmp += strlen(tmp) + 1;
 	}
 	fclose(fp);
 	free(_tmp);
@@ -290,7 +291,7 @@ int save_loadPartial(int no, int page, int offset, int cnt) {
 		cnt = min(cnt, SYSVAR_MAX - offset);
 		var = sysVar + offset;
 	} else {
-		cnt = min(cnt, arrayVarBuffer[page - 1].max - offset);
+		cnt = min(cnt, arrayVarBuffer[page - 1].size - offset);
 		var = arrayVarBuffer[page - 1].value + offset;
 	}
 	
@@ -348,7 +349,7 @@ int save_savePartial(int no, int page, int offset, int cnt) {
 	} else {
 		if (arrayVarBuffer[page - 1].saveflag == FALSE)
 			goto errexit;
-		cnt = min(cnt, arrayVarBuffer[page - 1].max - offset);
+		cnt = min(cnt, arrayVarBuffer[page - 1].size - offset);
 		var = arrayVarBuffer[page - 1].value + offset;
 	}
 	
@@ -599,7 +600,8 @@ static void *saveStrVar(Ald_strVarHdr *head) {
 	*tmp = 0;
 	for (i = 0; i < strvar_cnt; i++) {
 		strncpy(tmp, v_str(i), strvar_len - 1);
-		tmp += v_strlen(i) + 1;
+		tmp[strvar_len - 1] = '\0';
+		tmp += strlen(tmp) + 1;
 	}
 	head->size   = tmp - _tmp;
 	head->count  = strvar_cnt;
@@ -618,8 +620,8 @@ static void loadStrVar(char *buf) {
 		v_initStringVars(cnt, max);
 	buf += sizeof(Ald_strVarHdr);
 	for (i = 0; i < cnt; i++) {
-		strncpy(v_str(i), buf, max - 1);
-		buf += v_strlen(i) + 1;
+		v_strcpy(i, buf);
+		buf += strlen(buf) + 1;
 	}
 }
 
@@ -634,7 +636,7 @@ static void *saveSysVar(Ald_sysVarHdr *head, int page) {
 	} else if (!arrayVarBuffer[page - 1].saveflag) {
 		return NULL;
 	} else {
-		cnt = arrayVarBuffer[page - 1].max;
+		cnt = arrayVarBuffer[page - 1].size;
 		var = arrayVarBuffer[page - 1].value;
 		if (var == NULL)
 			return NULL;
@@ -672,7 +674,7 @@ static int loadSysVar(char *buf) {
 		cnt = savefile_sysvar_cnt = head->size / sizeof(WORD);
 	} else {
 		cnt = head->size / sizeof(WORD);
-		if (arrayVarBuffer[page - 1].max != cnt || 
+		if (arrayVarBuffer[page - 1].size < cnt ||
 		    arrayVarBuffer[page - 1].value == NULL) {
 			/*
 			fprintf(stderr, "loadSysVar(): undef array\n");
@@ -755,11 +757,10 @@ static int saveGameData(int no, char *buf, int size) {
 }
 
 /* 指定ファイルからの画像の読み込み thanx tajiru@wizard */
-BYTE* load_cg_with_file(char *filename, int *status){
+BYTE* load_cg_with_file(char *filename, int *status, long *filesize){
 	int size;
 	FILE *fp;
 	static BYTE *tmp;
-	long filesize;
 	
 	*status = 0;
 	
@@ -768,20 +769,20 @@ BYTE* load_cg_with_file(char *filename, int *status){
 	}
 	
 	fseek(fp, 0L, SEEK_END);
-	filesize = ftell(fp);
-	if (filesize == 0) {
+	*filesize = ftell(fp);
+	if (*filesize == 0) {
 		*status = SAVE_LOADERR; return NULL;
 	}
 	
-	tmp = (char *)malloc(filesize);
+	tmp = (char *)malloc(*filesize);
 	if (tmp == NULL) {
 		WARNING("Out of memory\n");
 		*status = SAVE_LOADERR; return NULL;
 	}
 	fseek(fp, 0L, SEEK_SET);
-	size = fread(tmp, 1, filesize,fp);
+	size = fread(tmp, 1, *filesize,fp);
 	
-	if (size != filesize) {
+	if (size != *filesize) {
 		*status = SAVE_LOADSHORTAGE;
 	} else {
 		*status = SAVE_LOADOK;

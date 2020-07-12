@@ -38,7 +38,7 @@ struct fnametable {
 static char *saveDataPath;
 static boolean newfile_kanjicode_utf8 = TRUE;
 
-static char *get_fullpath(char* dir, char *filename) {
+static char *get_fullpath(const char* dir, char *filename) {
 	char *fn = malloc(strlen(filename) + strlen(dir) + 3);
 	if (fn == NULL) {
 		return NULL;
@@ -98,9 +98,9 @@ FILE *fc_open(char *filename, char type) {
 	FILE *fp;
 	if (type == 'w') {
 		fc_backup_oldfile(fullpath);
-		fp = fopen(fullpath, "w");
+		fp = fopen(fullpath, "wb");
 	} else {
-		fp = fopen(fullpath, "r");
+		fp = fopen(fullpath, "rb");
 	}
 	free(fullpath);
 	return fp;

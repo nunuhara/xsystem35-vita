@@ -69,13 +69,10 @@
 	} while (0)
 
 #else
-#define DEBUG_MESSAGE
-#define DEBUG_COMMAND
-#define DEBUG_COMMAND_YET
+#define DEBUG_MESSAGE(...)
+#define DEBUG_COMMAND(...)
+#define DEBUG_COMMAND_YET(...)
 #endif
-
-/* 配列外参照チェック/cali異常値検出 */
-#define DEBUG_CHECKALING
 
 /* defined in cali.c */
 extern int preVarPage;      /* 直前にアクセスした変数のページ */

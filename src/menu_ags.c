@@ -6,7 +6,7 @@
 #include "portab.h"
 #include "ags.h"
 #include "graphicsdevice.h"
-#include "imput.h"
+#include "input.h"
 #include "key.h"
 #include "menu.h"
 #include "menu_ags.h"
@@ -15,6 +15,7 @@
 #define CHAR_RARROW "\x81\xa8"
 #define CHAR_LARROW "\x81\xa9"
 
+boolean menu_dirty;
 int default_bg_color = 255;
 int default_fg_color = 0;
 int default_frame_color = 0;

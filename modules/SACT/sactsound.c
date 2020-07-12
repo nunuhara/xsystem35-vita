@@ -29,7 +29,7 @@
 #include "portab.h"
 #include "system.h"
 #include "nact.h"
-#include "imput.h"
+#include "input.h"
 #include "sactsound.h"
 #include "music.h"
 #include "sact.h"
@@ -140,14 +140,13 @@ int ssnd_waitkey(int no, int *res) {
 	}
 	
 	if (sact.waitkey == -1) {
+		cache[slot - SLOTOFFSET] = 0;
 		*res = 0;
 	} else {
 		*res = sact.waitkey;
 	}
 	sact.waittype = KEYWAIT_NONE;
-	
-	cache[slot - SLOTOFFSET] = 0;
-	
+
 	return OK;
 }
 

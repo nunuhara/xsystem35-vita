@@ -612,13 +612,13 @@ static BYTE hankakutable[3][192][2] = {{
 	{0x83, 0xff}
 }};
 
-BYTE *zen2han(BYTE *src) {
+BYTE *zen2han(const BYTE *src) {
 	BYTE c0, c1;
 	char *dst, *_dst;
 	
 	dst = _dst = malloc(strlen(src) + 1);
 	if (dst == NULL) {
-		fprintf(stderr, "zen2han(): Out of Memory (size %d)", strlen(src) + 1);
+		fprintf(stderr, "zen2han(): Out of Memory (size %zu)", strlen(src) + 1);
 		return NULL;
 	}
 	
@@ -644,14 +644,14 @@ BYTE *zen2han(BYTE *src) {
 	return _dst;
 }
 
-BYTE *han2zen(BYTE *src) {
+BYTE *han2zen(const BYTE *src) {
 	BYTE c0;
 	BYTE *dst, *_dst;
 	BYTE *kindex;
 	dst = _dst = malloc(strlen(src) * 2 + 1);
 	
 	if (dst == NULL) {
-		fprintf(stderr, "han2zen(): Out of Memory (size %d)", strlen(src) *2 + 1);
+		fprintf(stderr, "han2zen(): Out of Memory (size %zu)", strlen(src) *2 + 1);
 		return NULL;
 	}
 	

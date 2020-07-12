@@ -32,7 +32,7 @@
 #include "ngraph.h"
 #include "ags.h"
 #include "nact.h"
-#include "imput.h"
+#include "input.h"
 #include "sprite.h"
 #include "surface.h"
 #include "sactcg.h"
@@ -88,7 +88,7 @@ static void ec1_cb(surface_t *sfsrc, surface_t *sfdst) {
 	}
 	gre_Blend(sf0, 0, 0, sfsrc, 0, 0, sfdst, 0, 0, sfsrc->width, sfsrc->height, curstep);
 
-	// WARNING("step = %d\n", curstep);
+	// SACT_DEBUG("step = %d\n", curstep);
 	ags_updateFull();
 	
 	ecp.oldstep = curstep;
@@ -101,7 +101,7 @@ static void ec7_cb(surface_t *sfsrc, surface_t *sfdst) {
 	int i, t, y;
 	
 	curstep = maxstep * (ecp.curtime - ecp.sttime)/ (ecp.edtime - ecp.sttime);
-	//WARNING("step = %d\n", curstep);
+	//SACT_DEBUG("step = %d\n", curstep);
 	
 	if (ecp.oldstep == curstep) {
 		usleep(0);
@@ -129,7 +129,7 @@ static void ec8_cb(surface_t *sfsrc, surface_t *sfdst) {
 	int i, t, x;
 	
 	curstep = maxstep * (ecp.curtime - ecp.sttime) / (ecp.edtime - ecp.sttime);
-	//WARNING("step = %d\n", curstep);
+	//SACT_DEBUG("step = %d\n", curstep);
 	
 	if (ecp.oldstep == curstep) {
 		usleep(0);
@@ -160,7 +160,7 @@ static void ec9_cb(surface_t *sfsrc, surface_t *sfdst) {
 		      sfsrc->width  / EC9DELTA + EC9DELTA);
 	
 	curstep = maxstep * (ecp.curtime - ecp.sttime)/ (ecp.edtime - ecp.sttime);
-	//WARNING("step = %d\n", curstep);
+	//SACT_DEBUG("step = %d\n", curstep);
 	
 	if (ecp.oldstep == curstep) {
 		usleep(0);
@@ -194,7 +194,7 @@ static void ec12_cb(surface_t *src, surface_t *dst) {
 	int j, st_i, ed_i, l;
 	
 	curstep = maxstep * (ecp.curtime - ecp.sttime)/ (ecp.edtime - ecp.sttime);
-	WARNING("step = %d\n", curstep);
+	SACT_DEBUG("step = %d\n", curstep);
 	
 	if (ecp.oldstep == curstep) {
 		usleep(0); return;
@@ -225,7 +225,7 @@ static void ec13_cb(surface_t *src, surface_t *dst) {
 	int dyy  = 0 + sf0->height -1;
 	
 	curstep = maxstep * (ecp.curtime - ecp.sttime)/ (ecp.edtime - ecp.sttime);
-	WARNING("step = %d\n", curstep);
+	SACT_DEBUG("step = %d\n", curstep);
 	
 	if (ecp.oldstep == curstep) {
 		usleep(0); return;
@@ -364,7 +364,7 @@ static void ec_whiteout_cb(surface_t *sfsrc, surface_t *sfdst) {
   @param time: 実行時間(msec)
   @param cancel: キー抜け(0:なし, 1:あり)
 */
-int sp_eupdate(int type, int time, int cancel) {
+int nt_sp_eupdate(int type, int time, int cancel) {
 	surface_t *sfsrc, *sfdst;
 	int key;
 	entrypoint *cb;
@@ -372,7 +372,7 @@ int sp_eupdate(int type, int time, int cancel) {
 	// 現在の sf0 をセーブ
 	sfsrc = sf_dup(sf0);
 	
-	sp_update_all(FALSE);
+	nt_sp_update_all(FALSE);
 	
 	sfdst = sf_dup(sf0);
 	
@@ -415,7 +415,7 @@ int sp_eupdate(int type, int time, int cancel) {
 		cb = ec_dummy_cb;
 		break;
 	case 1013:
-		sp_update_all(TRUE); return OK;
+		nt_sp_update_all(TRUE); return OK;
 		// cb = ec_dummy_cb;
 		break;
 	default:

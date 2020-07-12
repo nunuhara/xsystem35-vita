@@ -1,19 +1,17 @@
-if (ENABLE_MODULES)
-  set(CMAKE_BUILD_RPATH ${CMAKE_CURRENT_BINARY_DIR}/../modules)
-  if (APPLE)
-	set(CMAKE_INSTALL_RPATH @loader_path/../lib/xsystem35)
-  else()
-	set(CMAKE_INSTALL_RPATH $ORIGIN/../lib/xsystem35)
-  endif()
+if (ANDROID)
+  add_library(xsystem35 SHARED)
+else()
+  add_executable(xsystem35)
 endif()
 
-add_executable(xsystem35)
+target_compile_options(xsystem35 PRIVATE -Wno-pointer-sign -Wno-invalid-source-encoding)
 
 target_sources(xsystem35 PRIVATE
   xsystem35.c
   dri.c
   ald_manager.c
   cache.c
+  gameresource.c
   ${SRC_AUDIO}
   ${SRC_CDROM}
   ${SRC_MIDI}
@@ -31,6 +29,10 @@ target_sources(xsystem35 PRIVATE
 # CG
 target_sources(xsystem35 PRIVATE
   pms.c vsp.c bmp.c qnt.c)
+if (HAVE_JPEG)
+  target_sources(xsystem35 PRIVATE jpeg.c)
+  target_link_libraries(xsystem35 PRIVATE JPEG::JPEG)
+endif()
 
 # Music
 target_sources(xsystem35 PRIVATE
@@ -38,17 +40,13 @@ target_sources(xsystem35 PRIVATE
 
 # Misc
 target_sources(xsystem35 PRIVATE
-  LittleEndian.c counter.c imput.c profile.c mt19937-1.c utfsjis.c
+  LittleEndian.c counter.c input.c profile.c mt19937-1.c utfsjis.c
   filecheck.c)
-
-if (NOT VITA)
-  target_sources(xsystem35 PRIVATE tempname.c)
-endif()
 
 # Scenario
 target_sources(xsystem35 PRIVATE
   cali.c scenario.c variable.c cmd_check.c hankana2sjis.c nact.c
-  selection.c message.c savedata.c hankaku.c s39ain.c)
+  selection.c message.c savedata.c hankaku.c s39ain.c texthook.c)
 
 # Graphics
 target_sources(xsystem35 PRIVATE
@@ -58,40 +56,35 @@ target_sources(xsystem35 PRIVATE
 target_sources(xsystem35 PRIVATE
   network.c)
 
-if (ENABLE_MODULES)
-  target_link_libraries(xsystem35 PRIVATE -rdynamic)
-endif()
-
 if (EMSCRIPTEN)
 
   set(LIBS "SHELL:-s USE_ZLIB=1 -s USE_FREETYPE=1 -s USE_SDL=2")
   target_compile_options(xsystem35 PRIVATE ${LIBS})
   target_link_options(xsystem35 PRIVATE ${LIBS})
+  target_link_libraries(xsystem35 PRIVATE idbfs.js)
 
   # Without optimizations, Asyncify generates very large code.
   list(APPEND CMAKE_EXE_LINKER_FLAGS_DEBUG "-O1")
 
   target_link_options(xsystem35 PRIVATE
-	"SHELL:-s ENVIRONMENT=web"
-	"SHELL:-s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1"
-	"SHELL:-s ASYNCIFY_IMPORTS=\"['emscripten_sleep','SDL_Delay','__syscall118','muspcm_load_no','muspcm_load_mixlr','muspcm_waitend','wait_vsync','load_mincho_font']\""
-	"SHELL:-s ALLOW_MEMORY_GROWTH=1"
-	"SHELL:-s NO_EXIT_RUNTIME=1"
-	"SHELL:-s EXPORTED_FUNCTIONS=\"['_main','_ags_setAntialiasedStringMode', '_ald_getdata', '_ald_freedata', '_va_alarm_handler']\""
-	"SHELL:-s EXTRA_EXPORTED_RUNTIME_METHODS=\"['getValue','getMemory','addRunDependency','removeRunDependency']\"")
+    "SHELL:-s ENVIRONMENT=web"
+    "SHELL:-s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1"
+    "SHELL:-s ASYNCIFY_IMPORTS=\"['muspcm_load_no','muspcm_load_mixlr','muspcm_waitend','wait_vsync','load_mincho_font']\""
+    "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+    "SHELL:-s NO_EXIT_RUNTIME=1"
+    "SHELL:-s EXPORTED_FUNCTIONS=\"['_main','_ags_setAntialiasedStringMode', '_ald_getdata', '_ald_freedata']\""
+    "SHELL:-s EXTRA_EXPORTED_RUNTIME_METHODS=\"['getValue','getMemory','addRunDependency','removeRunDependency']\"")
 
+elseif (ANDROID)
+  target_link_libraries(xsystem35 PRIVATE SDL2 SDL2_ttf SDL2_mixer ${ndk_zlib} ${ndk_log})
 elseif (VITA)
   target_sources(xsystem35 PRIVATE vita_launcher.c vita_port.c)
-  target_compile_definitions(xsystem35 PRIVATE
-	VITA=1
-	VITA_TITLEID="${VITA_TITLEID}"
-	)
-  target_link_libraries(xsystem35
+  target_link_libraries(xsystem35 PRIVATE
 	debugnet
-	SDL2_mixer
-	SDL2_ttf
-	freetype
 	SDL2
+	SDL2_ttf
+	SDL2_mixer
+	freetype
 	vita2d
 	mpg123
 	vorbisfile
@@ -114,40 +107,45 @@ elseif (VITA)
 	SceTouch_stub
 	SceHid_stub
 	ScePgf_stub
+	SceAppMgr_stub
 	m
 	c
 	)
-else()  # non-emscripten
+else()  # non-emscripten, non-android
   target_link_libraries(xsystem35 PRIVATE m ZLIB::ZLIB)
   if (X11_FOUND)
-	target_include_directories(xsystem35 PRIVATE ${X11_INCLUDE_DIR})
-	target_link_libraries(xsystem35 PRIVATE ${X11_LIBRARIES})
-	if (X11_xf86vmode_FOUND)
-	  target_link_libraries(xsystem35 PRIVATE ${X11_Xxf86vm_LIB})
-	endif()
+    target_include_directories(xsystem35 PRIVATE ${X11_INCLUDE_DIR})
+    target_link_libraries(xsystem35 PRIVATE ${X11_LIBRARIES})
+    if (X11_xf86vmode_FOUND)
+      target_link_libraries(xsystem35 PRIVATE ${X11_Xxf86vm_LIB})
+    endif()
   endif()
   if (GTK2_FOUND)
-	target_link_libraries(xsystem35 PRIVATE GTK2::gtk)
+    target_link_libraries(xsystem35 PRIVATE GTK2::gtk)
   endif()
   if (FREETYPE_FOUND)
-	target_link_libraries(xsystem35 PRIVATE Freetype::Freetype)
+    target_link_libraries(xsystem35 PRIVATE Freetype::Freetype)
   endif()
-  if (SDL2_FOUND)
-	target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2)
+  if (ENABLE_SDL)
+    target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2)
   endif()
   if (SDL2MIXER_FOUND)
-	target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2MIXER)
+    target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2MIXER)
   endif()
   if (SDL2TTF_FOUND)
-	target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2TTF)
+    target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2TTF)
   endif()
 
   install(TARGETS xsystem35 RUNTIME DESTINATION bin)
+
+  add_executable(src_tests src_tests.c gameresource_test.c gameresource.c)
+  add_test(NAME src_tests COMMAND src_tests)
+  configure_file(testdata/test.gr ${CMAKE_CURRENT_BINARY_DIR}/testdata/test.gr COPYONLY)
 endif()
 
 # FIXME: set up dependency for xsystem35 on this
-if (ENABLE_SDL AND NOT EMSCRIPTEN)
+if (ENABLE_SDL AND NOT EMSCRIPTEN AND NOT ANDROID)
   add_custom_target(sdl_input.c
-	COMMAND perl xsyskey.pl ${SDL2_INCLUDE_DIRS} > sdl_input.c
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    COMMAND perl xsyskey.pl ${SDL2_INCLUDE_DIRS} > sdl_input.c
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
