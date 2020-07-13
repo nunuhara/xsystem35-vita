@@ -29,6 +29,7 @@
 #include "scenario.h"
 #include "font.h"
 #include "s39ain.h"
+#include "gameresource.h"
 #include "selection.h"
 #include "message.h"
 #include "ags.h"
@@ -123,23 +124,8 @@ typedef struct {
 	/* ain 関連 */
 	S39AIN ain;
 
-	/* データのファイル名 */
-	struct {
-		char *scenario[2];
-		char *graphics[2];
-		char *wav[2];
-		char *midi[2];
-		char *data[2];
-		char *resource[2];
-		char *bgm[2];
-		char *save[27];
-		char *savedir;
-		char *init;
-		char *bgi;
-		char *wai;
-		char *sact01;
-		char *alk[10];
-	} files;
+	/* data file names */
+	GameResource files;
 	
 	int frame_count;
 	int cmd_count;
