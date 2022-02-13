@@ -190,7 +190,7 @@ if (SDL2MIXER_FOUND AND NOT ANDROID)
   list(APPEND SUMMARY_CDROM "SDL_mixer (wav|mp3|ogg...)")
   set(ENABLE_CDROM_MP3 1)
 endif()
-set(CDROM_DEVICE "/dev/cdrom" CACHE STRING "CDROM Device Name")
+set(CDROM_DEVICE "playlist.txt" CACHE STRING "CDROM Device Name")
 
 # MIDI
 
@@ -263,7 +263,7 @@ if (X11_FOUND)
   set(ENABLE_X11FONT 1)
 endif()
 if (FREETYPE_FOUND)
-  list(APPEND SRC_FONT font_freetype2.c cp932tojis0213.c)
+  list(APPEND SRC_FONT font_freetype2.c)
   list(APPEND SUMMARY_FONT "freetype2")
   set(ENABLE_FT2 1)
 endif()

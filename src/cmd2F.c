@@ -33,10 +33,12 @@
 #include "message.h"
 #include "music.h"
 #include "utfsjis.h"
+#include "hankaku.h"
 #include "ags.h"
 #include "graphicsdevice.h"
 #include "ald_manager.h"
 #include "LittleEndian.h"
+#include "gametitle.h"
 #if HAVE_UNAME
 #include <sys/utsname.h>
 #endif
@@ -365,7 +367,9 @@ void commands2F23() {
 	int y = getCaliValue();
 	char *vFileName = sys_getString(0);
 	
-	sysVar[0] = cg_load_with_filename(vFileName, x, y);
+	char *fname_utf8 = sjis2utf(vFileName);
+	sysVar[0] = cg_load_with_filename(fname_utf8, x, y);
+	free(fname_utf8);
 	
 	DEBUG_COMMAND("LC(new) %d, %d, %s:\n", x, y, vFileName);
 }
@@ -376,18 +380,20 @@ void commands2F24() {
 	int *var = NULL, _var = 0;
 	int num = 0;
 
+	char *fname_utf8 = sjis2utf(file_name);
 	switch(type) {
 	case 0:
 		var = getCaliVariable();
 		num  = getCaliValue();
-		sysVar[0] = save_load_var_with_file(file_name, var, num);        
+		sysVar[0] = save_load_var_with_file(fname_utf8, var, num);
 		break;
 	case 1:
 		_var = getCaliValue();
 		num  = getCaliValue();
-		sysVar[0] = save_load_str_with_file(file_name, _var, num);
+		sysVar[0] = save_load_str_with_file(fname_utf8, _var, num);
 		break;
 	}
+	free(fname_utf8);
 	
 	DEBUG_COMMAND("LE(new) %d, %s, %d, %d:\n", type, file_name, var, num);
 }
@@ -406,8 +412,8 @@ void commands2F26() {
 	char *title  = sys_getString(0);
 	char *t1, *t2, *t3;
 	
-	t1 = sjis2lang(title);
-	t2 = sjis2lang(v_str(dst_no -1));
+	t1 = sjis2utf(title);
+	t2 = sjis2utf(v_str(dst_no -1));
 	
 	mi_param.title = t1;
 	mi_param.oldstring = t2;
@@ -420,7 +426,7 @@ void commands2F26() {
 		return;
 	}
 	
-	t3 = lang2sjis(mi_param.newstring);
+	t3 = utf2sjis(mi_param.newstring);
 	
 	/* 全角文字以外は不可 */
 	if (!sjis_has_hankaku(t3)) {
@@ -449,10 +455,14 @@ void commands2F27() {
 void commands2F28() {
 	char *title = sys_getString(0);
 	
-	strncpy(nact->game_title_name, title, 30);
+	if (nact->game_title_utf8)
+		free(nact->game_title_utf8);
+	nact->game_title_utf8 = sjis2utf(title);
+
 	ags_setWindowTitle(title);
 
-	if (0 == strcmp(title, GT_RANCE3_ENG) || 0 == strcmp(title, GT_RANCE4_ENG)) {
+	if (0 == strcmp(nact->game_title_utf8, GT_RANCE3_ENG) ||
+		0 == strcmp(nact->game_title_utf8, GT_RANCE4_ENG)) {
 		have_eng_mp_patch = TRUE;
 	}
 
@@ -468,7 +478,7 @@ void commands2F29() {
 	if (ni_param.title != NULL) {
 		free(ni_param.title);
 	}
-	t = sjis2lang(title);
+	t = sjis2utf(title);
 	ni_param.title = t;
 	
 	DEBUG_COMMAND("NT(new) %s:\n", title);
@@ -479,20 +489,23 @@ void commands2F2A() {
 	char *file_name = sys_getString(0);
 	int *var, _var = 0, cnt;
 
+	char *fname_utf8 = sjis2utf(file_name);
 	switch(type) {
 	case 0:
 		var = getCaliVariable();
 		cnt = getCaliValue();
-		sysVar[0] = save_save_var_with_file(file_name, var, cnt);
+		sysVar[0] = save_save_var_with_file(fname_utf8, var, cnt);
 		break;
 	case 1:
 		_var = getCaliValue();
 		cnt  = getCaliValue();
-		sysVar[0] = save_save_str_with_file(file_name, _var, cnt);
+		sysVar[0] = save_save_str_with_file(fname_utf8, _var, cnt);
 		break;
 	default:
-		WARNING("Unknown QE command\n"); return;
+		WARNING("Unknown QE command\n");
+		break;
 	}
+	free(fname_utf8);
 
 	DEBUG_COMMAND("QE(new) %d, %s, %d, %d:\n", type, file_name, _var, cnt);
 }
@@ -639,22 +652,7 @@ void commands2F3C() {
 	int ePos = getCaliValue();
 	int *vResult = getCaliVariable();
 	
-	if (eNum <= 0 || v_strlen(eNum -1) < ePos) {
-		*vResult = 0;
-	} else {
-		BYTE b1, b2 = 0;
-		b1 = *(v_str(eNum - 1) + ePos);
-		if (ePos == 0) {
-			*vResult = CHECKSJIS1BYTE(b1) ? 2 : 1;
-		} else {
-			b2 = *(v_str(eNum - 1) + ePos -1);
-			if (CHECKSJIS1BYTE(b1)) {
-				*vResult = 2;
-			} else {
-				*vResult = CHECKSJIS1BYTE(b2) ? 2 : 1;
-			}
-		}
-	}
+	*vResult = v_strGetCharType(eNum - 1, ePos);
 	
 	DEBUG_COMMAND("strGetCharType %d, %d, %d:\n", eNum, ePos, *vResult);
 }
@@ -663,7 +661,7 @@ void commands2F3D() {
 	int eNum = getCaliValue();
 	int *vResult = getCaliVariable();
 	
-	*vResult = v_strlen(eNum -1);
+	*vResult = v_strWidth(eNum -1);
 
 	DEBUG_COMMAND("strGetLengthASCII %d, %d:\n", eNum, *vResult);
 }
@@ -746,15 +744,9 @@ void commands2F44() {
 	int num1 = getCaliValue();
 	int fig  = getCaliValue();
 	int num2 = getCaliValue();
-	char s[256];
+	char buf[256];
 
-	if (fig) {
-		sprintf(s, "%*d", fig, num2);
-		v_strcpy(num1 - 1, s + strlen(s) - fig);
-	} else {
-		sprintf(s, "%d", num2);
-		v_strcpy(num1 - 1, s);
-	}
+	v_strcpy(num1 - 1, format_number(num2, fig, buf));
 	
 	DEBUG_COMMAND("MHH %d, %d, %d:\n", num1, fig, num2);
 }
@@ -932,8 +924,8 @@ void commands2F57() {
 	char *t1, *t2, *t3;
 	INPUTSTRING_PARAM p;
 	
-	t1 = sjis2lang(sTitle);
-	t2 = sjis2lang(v_str(eStrVar -1));
+	t1 = sjis2utf(sTitle);
+	t2 = sjis2utf(v_str(eStrVar -1));
 	p.title = t1;
 	p.oldstring = t2;
 	p.max = eLength;
@@ -942,7 +934,7 @@ void commands2F57() {
 	if (p.newstring == NULL) {
 		*vResult = 65535;
 	} else {
-		t3 = lang2sjis(p.newstring);
+		t3 = utf2sjis(p.newstring);
 		if (!sjis_has_hankaku(t3)) {
 			v_strcpy(eStrVar -1, t3);
 			*vResult = sjis_count_char(t3);
@@ -961,7 +953,7 @@ void commands2F58() {
 	int eNum = getCaliValue();
 	int *vResult = getCaliVariable();
 	
-	*vResult = sjis_has_hankaku(v_str(eNum) -1) ? 1 : 0;
+	*vResult = sjis_has_hankaku(v_str(eNum - 1)) ? 1 : 0;
 	
 	DEBUG_COMMAND("strCheckASCII %d, %d:\n", eNum, *vResult);
 }
@@ -970,7 +962,7 @@ void commands2F59() {
 	int eNum = getCaliValue();
 	int *vResult = getCaliVariable();
 	
-	*vResult = sjis_has_zenkaku(v_str(eNum) -1) ? 1 : 0;
+	*vResult = sjis_has_zenkaku(v_str(eNum - 1)) ? 1 : 0;
 	
 	DEBUG_COMMAND("strCheckSJIS %d, %d:\n", eNum, *vResult);
 }
@@ -979,7 +971,7 @@ void commands2F5A() {
 	char *sText = sys_getString(0);
 	char *t1;
 	
-	t1 = sjis2lang(sText);
+	t1 = sjis2utf(sText);
 	menu_msgbox_open(t1);
 	free(t1);
 	
@@ -990,7 +982,7 @@ void commands2F5B() {
 	int eNum = getCaliValue();
 	char *t1;
 	
-	t1 = sjis2lang(v_str(eNum) - 1);
+	t1 = sjis2utf(v_str(eNum) - 1);
 	menu_msgbox_open(t1);
 	free(t1);
 	
@@ -1348,9 +1340,7 @@ void commands2F7D() {
 	int index = sys_getdw();
 	
 	commandH();
-	sys_addMsg(nact->ain.msg[index]);
 	
-	// DEBUG_COMMAND_YET("2F7D %d, %d, %d:\n", index, page, p1);
 	DEBUG_COMMAND("2F7D %d:\n", index);
 }
 
@@ -1358,9 +1348,7 @@ void commands2F7E() {
 	int index = sys_getdw();
 	
 	commandHH();
-	sys_addMsg(nact->ain.msg[index]);
 	
-	//DEBUG_COMMAND_YET("2F7E %d, %d, %d:\n", index, p1, p2);
 	DEBUG_COMMAND("2F7E %d:\n", index);
 }
 
@@ -1369,7 +1357,6 @@ void commands2F7F() {
 	int p1    = sys_getCaliValue();
 	
 	sys_addMsg(v_str(p1 -1));
-	sys_addMsg(nact->ain.msg[index]);
 	
 	DEBUG_COMMAND("2F7F %d, %d(%s,%s):\n", index, p1, nact->ain.msg[index], v_str(p1 -1));
 }

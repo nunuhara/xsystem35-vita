@@ -53,6 +53,10 @@
 #include <android/log.h>
 #endif
 
+#ifdef _WIN32
+#include "win/dialog.h"
+#endif
+
 #include "nact.h"
 #include "portab.h"
 #include "xsystem35.h"
@@ -87,14 +91,12 @@ static void    check_profile();
 /* for debugging */
 static FILE *fpdebuglog;
 static int debuglv = DEBUGLEVEL;
-int sys_nextdebuglv;
 
 static int audio_buffer_size = 0;
 
 /* font name from rcfile */
 static char *fontname[FONTTYPEMAX];
 static char *fontname_tt[FONTTYPEMAX] = {DEFAULT_GOTHIC_TTF, DEFAULT_MINCHO_TTF};
-static boolean isjix0213_tt[FONTTYPEMAX];
 static char fontface[FONTTYPEMAX];
 
 #ifdef ENABLE_SDLTTF
@@ -142,7 +144,6 @@ static void sys35_usage(boolean verbose) {
 	
 	puts(" -devjoy device : set joystic device name to 'device'");
 	puts("                    if 'device' is set to 'none', don't use the device");
-	puts(" -savekanji #   : kanji code of filename (0 or 1 ... 0:utf-8, 1:sjis)");
 
 	puts(" -devfont device: select font device");
 #ifdef ENABLE_SDLTTF
@@ -195,8 +196,8 @@ void _sys_error(void)
 	exit(1);
 }
 #else
-void sys_message(char *format, ...) {
-	if (debuglv < sys_nextdebuglv)
+void sys_message(int lv, char *format, ...) {
+	if (debuglv < lv)
 		return;
 
 	va_list args;
@@ -211,10 +212,10 @@ void sys_message(char *format, ...) {
 		ANDROID_LOG_INFO,
 		ANDROID_LOG_VERBOSE,
 	};
-	int prio = prio_table[min(sys_nextdebuglv, 5)];
+	int prio = prio_table[min(lv, 5)];
 	__android_log_vprint(prio, "xsystem35", format, args);
 #elif defined (DEBUG)
-	if (sys_nextdebuglv >= 5) {
+	if (lv >= 5) {
 		vfprintf(fpdebuglog, format, args);
 		fflush(fpdebuglog);
 	} else {
@@ -291,7 +292,6 @@ static void sys35_init() {
 		case FONT_FT2:
 		case FONT_SDLTTF:
 			nact->ags.font->name[i] = fontname_tt[i];
-			nact->ags.font->isJISX0213[i] = isjix0213_tt[i];
 			nact->ags.font->face[i] = fontface[i];
 			break;
 			
@@ -397,10 +397,6 @@ static void sys35_ParseOption(int *argc, char **argv) {
 			if (argv[i + 1] != NULL) {
 				joy_set_devicename(argv[i + 1]);
 			}
-		} else if (0 == strcmp(argv[i], "-savekanji")) {
-			if (argv[i + 1] != NULL) {
-				fc_set_default_kanjicode(argv[i + 1][0] - '0');
-			}
 		} else if (0 == strcmp(argv[i], "-fullscreen")) {
 			fs_on = TRUE;
 		} else if (0 == strcmp(argv[i], "-noantialias")) {
@@ -466,16 +462,6 @@ static void check_profile() {
 	if (param) {
 		fontname_tt[FONT_MINCHO] = param;
 	}
-	/* ゴシックフォント(TT)のコード設定 */
-	param = get_profile("ttfont_gothic_code");
-	if (param) {
-		isjix0213_tt[FONT_GOTHIC] = (strcmp("jisx0213",param) == 0 ? TRUE : FALSE);
-	}
-	/* 明朝フォント(TT)のコード設定 */
-	param = get_profile("ttfont_mincho_code");
-	if (param) {
-		isjix0213_tt[FONT_MINCHO] = (strcmp("jisx0213",param) == 0 ? TRUE : FALSE);
-	}
 	/* ゴシックフォント(TT)のフェイス指定 */
 	param = get_profile("ttfont_gothic_face");
 	if (param) {
@@ -529,11 +515,6 @@ static void check_profile() {
 		if (0 == strcmp(param, "Yes")) {
 			SetNoShmMode();
 		}
-	}
-	/* qe-kanjicode flag */
-	param = get_profile("qe-kanjicode");
-	if (param) {
-		fc_set_default_kanjicode(*param - '0');
 	}
 	/* disable image cursor */
 	param = get_profile("no_imagecursor");
@@ -639,7 +620,7 @@ static void registerGameFiles(void) {
 	if (nact->files.cnt[DRIFILE_SCO] == 0)
 		SYSERROR("No Scenario data available\n");
 	for (int type = 0; type < DRIFILETYPEMAX; type++)
-		ald_init(type, nact->files.game_fname[type], nact->files.cnt[type], TRUE);
+		ald_init(type, nact->files.game_fname[type], nact->files.cnt[type]);
 	if (nact->files.save_path)
 		fc_init(nact->files.save_path);
 }
@@ -664,6 +645,12 @@ int main(int argc, char **argv) {
 	if (strcmp(argv[1], "-gamedir") == 0)
 		chdir(argv[2]);
 #endif
+#ifdef _WIN32
+	if (argc == 1) {
+		if (!select_game_folder())
+			return 0;
+	}
+#endif
 	
 	load_profile();
 	check_profile();
@@ -676,8 +663,14 @@ int main(int argc, char **argv) {
 		}
 	}
 #endif
-	if (!initGameResource(&nact->files, gameResourceFile))
+	if (!initGameResource(&nact->files, gameResourceFile)) {
+#ifdef _WIN32
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "xsystem35", "Cannot find scenario file (*SA.ALD)", NULL);
+		exit(1);
+#else
 		sys35_usage(TRUE);
+#endif
+	}
 	registerGameFiles();
 	
 #ifdef HAVE_SIGACTION

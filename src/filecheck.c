@@ -26,17 +26,15 @@
 #include <string.h>
 #include <sys/types.h>
 #include <dirent.h>
+#ifdef _WIN32
+#include <windows.h>
+#undef min
+#undef max
+#endif
 
 #include "filecheck.h"
-#include "utfsjis.h"
-
-struct fnametable {
-	char *realname;
-	char *transname;
-};
 
 static char *saveDataPath;
-static boolean newfile_kanjicode_utf8 = TRUE;
 
 static char *get_fullpath(const char* dir, const char *filename) {
 	char *fn = malloc(strlen(filename) + strlen(dir) + 3);
@@ -55,43 +53,53 @@ void fc_init(const char *name) {
 	saveDataPath = strdup(name);
 }
 
-static char *fc_search(const char *fname_sjis, const char *dir) {
+#ifdef _WIN32
+
+FILE *fopen_utf8(const char *path_utf8, char type) {
+	wchar_t wpath[PATH_MAX + 1];
+	if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path_utf8, -1, wpath, PATH_MAX + 1))
+		return NULL;
+	return _wfopen(wpath, type == 'r' ? L"rb" : L"wb");
+}
+
+FILE *fc_open(const char *fname_utf8, char type) {
+	char *path = get_fullpath(saveDataPath, fname_utf8);
+	FILE *fp = fopen_utf8(path, type);
+	if (!fp && type == 'r') {
+		fp = fopen_utf8(fname_utf8, type);
+	}
+	free(path);
+	return fp;
+}
+
+#else // !_WIN32
+
+static char *fc_search(const char *fname_utf8, const char *dir) {
 	DIR *d = opendir(dir);
 	if (d == NULL)
 		return NULL;
 
-	BYTE *fname_utf = sjis2lang(fname_sjis);
 	char *found = NULL;
 	struct dirent *entry;
 	while ((entry = readdir(d)) != NULL) {
-		if (strcasecmp(fname_sjis, entry->d_name) == 0 ||
-			strcasecmp(fname_utf, entry->d_name) == 0) {
+		if (strcasecmp(fname_utf8, entry->d_name) == 0) {
 			found = get_fullpath(dir, entry->d_name);
 			break;
 		}
 	}
 	closedir(d);
-	free(fname_utf);
 	return found;
 }
 
-FILE *fc_open(const char *filename, char type) {
-	char *fullpath = fc_search(filename, saveDataPath);
-	if (fullpath == NULL) {
+FILE *fc_open(const char *fname_utf8, char type) {
+	char *fullpath = fc_search(fname_utf8, saveDataPath);
+	if (!fullpath) {
 		if (type == 'r') {
-#ifdef __EMSCRIPTEN__
-			fullpath = fc_search(filename, ".");
-#endif
-			if (fullpath == NULL)
+			fullpath = fc_search(fname_utf8, ".");
+			if (!fullpath)
 				return NULL;
 		} else {
-			if (newfile_kanjicode_utf8) {
-				char *fc = sjis2lang(filename);
-				fullpath = get_fullpath(saveDataPath, fc);
-				free(fc);
-			}
-			else
-				fullpath = get_fullpath(saveDataPath, filename);
+			fullpath = get_fullpath(saveDataPath, fname_utf8);
 		}
 	}
 
@@ -105,6 +113,7 @@ FILE *fc_open(const char *filename, char type) {
 	free(fullpath);
 	return fp;
 }
+#endif // _WIN32
 
 void fc_backup_oldfile(const char *filename) {
 #ifndef __EMSCRIPTEN__
@@ -120,12 +129,3 @@ void fc_backup_oldfile(const char *filename) {
 	free(newname);
 #endif
 }
-
-/* QE で新規ファイルをセーブする時のファイル名の漢字コード */
-void fc_set_default_kanjicode(int c) {
-	if (c == 0) {
-		newfile_kanjicode_utf8 = TRUE;
-	} else {
-		newfile_kanjicode_utf8 = FALSE;
-	}
-}		

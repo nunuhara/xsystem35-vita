@@ -38,6 +38,7 @@
 #include "message.h"
 #include "input.h"
 #include "menu.h"
+#include "hankaku.h"
 
 /*
 
@@ -51,11 +52,6 @@ MG コマンド: 表示時の ZH に依存
 
 */
 
-/* defined in hankaku.c */
-extern BYTE *zen2han(const BYTE *src);
-extern BYTE *han2zen(const BYTE *src);
-/* defined by hankan2sjis.c */
-extern char *hankana2sjis(int index);
 /* defined by cmd_check.c */
 extern void check_command(int c0);
 /* defined by cmdv.c */
@@ -97,28 +93,6 @@ char *sys_getConstString() {
 		*index++ = ((c0 & 0xf0) >> 4) + ((c0 & 0x0f) << 4);
 	}
 	
-	*index = 0;
-	return msgbuf;
-}
-
-/* 加工済み(半カナ->全カナ) 文字列抽出 */
-char* sys_getConvString(char term) {
-	int c0;
-	char *index = msgbuf;
-	char *kindex;
-	
-	while ((c0 = sl_getc()) != (int)term) {
-		if (c0 == 0x20) {
-			*index++ = 0x81; *index++ = 0x40;
-		} else if (c0 >= 0xe0) {
-			*index++ = (char)c0; *index++ = (char)sl_getc();
-		} else if (c0 >= 0xa0) {
-			kindex = hankana2sjis(c0);
-			*index++ = *kindex; *index++ = *(kindex+1);
-		} else {
-			*index++ = (char)c0; *index++ = (char)sl_getc();
-		}
-	}
 	*index = 0;
 	return msgbuf;
 }

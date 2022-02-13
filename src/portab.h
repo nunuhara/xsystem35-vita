@@ -26,14 +26,7 @@
 
 #include "config.h"
 
-#ifdef DMALLOC
-#include <dmalloc.h>
-#endif
-
-#define	YES		1
-#define	NO		0
 #define OK		0
-#define ERROR	      (-1)
 #define NG	      (-1)
 #define true            1
 #define false           0
@@ -41,7 +34,7 @@
 #ifndef FALSE
 #define FALSE           0
 #undef  TRUE
-#define TRUE            (!FALSE)
+#define TRUE            1
 #endif
 
 #define min(x,y) ((x) < (y) ? (x) : (y))
@@ -49,8 +42,12 @@
 
 typedef	unsigned char  ___BYTE;
 typedef	unsigned short ___WORD;
+#ifdef _WIN32
+typedef	unsigned long  ___DWORD;
+#else
 typedef	unsigned int   ___DWORD;
-typedef char           ___boolean;
+#endif
+typedef _Bool          ___boolean;
 
 #ifndef BYTE
 #define BYTE ___BYTE

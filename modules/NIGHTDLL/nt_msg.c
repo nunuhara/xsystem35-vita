@@ -17,11 +17,13 @@
 #include "nt_msg.h"
 #include "sprite.h"
 #include "sactcg.h"
-#include "sjisname.h"
 #include "sactstring.h"
 
 
 extern int ntsel_dosel(void);
+
+#define SNAME_RYO "亮　　　　"
+#define SNAME_RYO_DEF "亮"
 
 // 通常メッセージ表示位置と大きさ
 #define MSGFRAME_0_X 6
@@ -102,7 +104,7 @@ void ntmsg_init() {
 
 
 	// 主人公名前
-	nt_sstr_regist_replace(SNAME_RYO, SNAME_RYO_DEF);
+	nt_sstr_regist_replace(utf2sjis(SNAME_RYO), utf2sjis(SNAME_RYO_DEF));
 	
 	night.msg.cbmove = cb_mousemove;
 	night.msg.cbrelease = cb_keyrelease;
@@ -187,7 +189,7 @@ void ntmsg_add(const char *msg) {
 	if (msg[0] == '\0') return;
 	
 	if (0) {
-		char *b = sjis2lang(msg);
+		char *b = sjis2utf(msg);
 		fprintf(stderr, "add msg '%s'\n", b);
 		free(b);
 	}
@@ -259,7 +261,7 @@ static void ntmsg_out(int wNum, int wSize, int wColorR, int wColorG, int wColorB
 		dt_setfont(wFont, wSize);
 
 		if (1) {
-			char *b = sjis2lang(mbuf);
+			char *b = sjis2utf(mbuf);
 			fprintf(stderr, "msg '%s'\n", b);
 			free(b);
 		}

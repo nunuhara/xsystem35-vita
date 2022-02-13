@@ -68,6 +68,11 @@ BYTE *sjis2utf(const BYTE *src) {
 }
 
 static int unicode_to_sjis(int u) {
+	// U+30FB (KATAKANA MIDDLE DOT) is used as replacement character in
+	// s2utbl.h, so needs special treatment.
+	if (u == 0x30fb)
+		return 0x8145;
+
 	for (int b1 = 0x80; b1 <= 0xff; b1++) {
 		if (b1 >= 0xa0 && b1 <= 0xdf)
 			continue;
@@ -153,29 +158,4 @@ int sjis_count_char(const BYTE *src) {
 		c++; src++;
 	}
 	return c;
-}
-
-/* SJIS(EUC) を含む文字列の ASCII を大文字化する */
-void sjis_toupper(BYTE *src) {
-	while(*src) {
-		if (CHECKSJIS1BYTE(*src)) {
-			src++;
-		} else {
-			if (*src >= 0x60 && *src <= 0x7a) {
-				*src &= 0xdf;
-			}
-		}
-		src++;
-	}
-}
-
-/* SJIS を含む文字列の ASCII を大文字化する2 */
-BYTE *sjis_toupper2(const BYTE *src) {
-	BYTE *dst;
-		
-	dst = malloc(strlen(src) +1);
-	if (dst == NULL) return NULL;
-	strcpy(dst, src);
-	sjis_toupper(dst);
-	return dst;
 }

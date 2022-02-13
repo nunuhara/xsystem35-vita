@@ -45,7 +45,6 @@ extern int getCaliValue();
 extern int *getCaliVariable();
 extern int *getVariable();
 extern char *sys_getString(char term);
-extern char *sys_getConvString(char term);
 extern void sys_addMsg(const char *str);
 extern void sys_setHankakuMode(int mode);
 extern char *sys_getConstString();
@@ -64,7 +63,7 @@ typedef struct {
 	boolean   popupmenu_opened;    /* popup menu が 開いているか */
 	boolean   mmx_is_ok;           /* MMX が有効かどうか */
 	
-	char       game_title_name[31];
+	char      *game_title_utf8;
 	int        scenario_version;
 
 	

@@ -31,7 +31,6 @@
 #include "nact.h"
 #include "variable.h"
 #include "ald_manager.h"
-#include "gametitle.h"
 
 /* logfile when debug level >= 5 */
 #define DEBUGLOGFILE "./xsystem35.log"
@@ -45,29 +44,12 @@
   6: add message(output to terminal or FILE)
 */
 
-#define DEBUG_SHOWSCOADR  sys_message("%d,%x: ", sl_getPage(), sl_getIndex())
 #ifdef DEBUG
-
-#define DEBUG_COMMAND_YET(format, ...)				\
-	do {											\
-		sys_nextdebuglv = 2;						\
-		DEBUG_SHOWSCOADR;							\
-		sys_message(format, ##__VA_ARGS__);			\
-	} while (0)
-
-#define DEBUG_COMMAND(format, ...)				\
-	do {										\
-		sys_nextdebuglv = 5;					\
-		DEBUG_SHOWSCOADR;						\
-		sys_message(format, ##__VA_ARGS__);		\
-	} while (0)
-
-#define DEBUG_MESSAGE(format, ...)				\
-	do {										\
-		sys_nextdebuglv = 6;					\
-		sys_message(format, ##__VA_ARGS__);		\
-	} while (0)
-
+#define DEBUG_COMMAND_YET(fmt, ...) \
+	sys_message(2, "%d,%x: " fmt, sl_getPage(), sl_getIndex(), ##__VA_ARGS__)
+#define DEBUG_COMMAND(fmt, ...) \
+	sys_message(5, "%d,%x: " fmt, sl_getPage(), sl_getIndex(), ##__VA_ARGS__)
+#define DEBUG_MESSAGE(...)     sys_message(6, __VA_ARGS__)
 #else
 #define DEBUG_MESSAGE(...)
 #define DEBUG_COMMAND(...)

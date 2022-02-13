@@ -31,11 +31,11 @@
 #include "menu.h"
 #include "ags.h"
 #include "message.h"
+#include "gametitle.h"
+#include "hankaku.h"
 
 /* defined by cmds.c */
 extern boolean dummy_pcm_su_flag;
-/* defined by hankan2sjis.c */
-extern char *num2sjis(int num);
 /* defined by cmds.c */
 extern boolean Y3waitCancel;
 
@@ -105,8 +105,8 @@ void commandMI() { /* T2 */
 	char *title = sys_getString(':');
 	char *t1, *t2, *t3;
 	
-	t1 = sjis2lang(title);
-	t2 = sjis2lang(v_str(dst_no -1));
+	t1 = sjis2utf(title);
+	t2 = sjis2utf(v_str(dst_no -1));
 	
 	mi_param.title = t1;
 	mi_param.oldstring = t2;
@@ -119,7 +119,7 @@ void commandMI() { /* T2 */
 		return;
 	}
 	
-	t3 = lang2sjis(mi_param.newstring);
+	t3 = utf2sjis(mi_param.newstring);
 	
 	/* 全角文字以外は不可 */
 	if (!sjis_has_hankaku(t3)) {
@@ -161,16 +161,18 @@ void commandMT() {
 	/* ウインドウのタイトル文字列を設定する */
 	char *str = sys_getString(':');
 	
-	strncpy(nact->game_title_name, str, sizeof(nact->game_title_name) -1);
+	if (nact->game_title_utf8)
+		free(nact->game_title_utf8);
+	nact->game_title_utf8 = sjis2utf(str);
 	ags_setWindowTitle(str);
 	
 	/* 闘神都市II 対策 */
-	if (0 == strcmp(str, GT_TOSHIN2)) {
+	if (0 == strcmp(nact->game_title_utf8, GT_TOSHIN2)) {
 		dummy_pcm_su_flag = TRUE;
 	}
 	
 	/* Rance4 対策？ */
-	if (0 == strcmp(str, GT_RANCE4)) {
+	if (0 == strcmp(nact->game_title_utf8, GT_RANCE4)) {
 		Y3waitCancel = FALSE;
 	}
 
@@ -193,29 +195,10 @@ void commandMH() {
 	int num1 = getCaliValue();
 	int fig  = getCaliValue();
 	int num2 = getCaliValue();
-	char _work1[10],_work2[200];
-	char *work1 = _work1, *work2 = _work2;
-	int len;
-	
-	*work2 = 0;
-	sprintf(work1,"%d",num2);
-	if (fig != 0) {
-		len = strlen(work1);
-		if (fig > len) {
-			/* 空白でうめる */
-			len = fig - len;
-			while(len--) {
-				strcat(work2, num2sjis(10));
-			}
-		} else {
-			work1 += (len - fig);
-		}
-	}
-	while(*work1) {
-		strcat(work2, num2sjis((*work1) - '0')); work1++;
-	}
-	v_strcpy(num1 - 1, work2);
-	
+
+	char buf[512];
+	v_strcpy(num1 - 1, format_number_zenkaku(num2, fig, buf));
+
 	DEBUG_COMMAND("MH %d,%d,%d:\n",num1,fig,num2);
 }
 
@@ -330,7 +313,7 @@ void commandMG() {
 		break;
 	case 7:
 		var = getCaliVariable();
-		*var = v_strlen(nact->msg.mg_curStrVarNo -1) / 2;
+		*var = v_strlen(nact->msg.mg_curStrVarNo -1);
 		break;
 	case 100:
 		sw = getCaliValue();
@@ -355,7 +338,7 @@ void commandMJ() {
 	INPUTSTRING_PARAM mj_param;
 	char *t1, *t2;
 	
-	t1 = sjis2lang(v_str(num -1));
+	t1 = sjis2utf(v_str(num -1));
 	mj_param.max = max_len;
 	mj_param.x = x;
 	mj_param.y = y;
@@ -366,7 +349,7 @@ void commandMJ() {
 	menu_inputstring2(&mj_param);
 	if (mj_param.newstring == NULL) return;
 	
-	t2 = lang2sjis(mj_param.newstring);
+	t2 = utf2sjis(mj_param.newstring);
 	if (!sjis_has_hankaku(t2)) {
 		v_strcpy(num -1, t2);
 	}
