@@ -124,7 +124,7 @@ static void window_init(void) {
 	SDL_SetHint(SDL_HINT_EMSCRIPTEN_ASYNCIFY, "0");
 #endif
 
-#ifdef __ANDROID__
+#if defined (__ANDROID__) || defined (VITA)
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 	SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
 	Uint32 flags = SDL_WINDOW_FULLSCREEN;

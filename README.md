@@ -43,12 +43,6 @@ where the file `playlist` contains:
 	bgm/kichiku_3.mp3
 	...
 
-## Known Issues
-
-* *Startup time for some games (especially KR) is really bad.* This is caused by the game rendering a bunch of invisible text at startup (TTF font rendering on Vita is pretty slow). I have a plan to fix this (use system font rendering API).
-
-* *The game looks ugly/blurry.* The Vita has a vertical resolution of 544 pixels, whereas System 3.x games usually run at a slightly lower resolution (400 or 480). Slight upscaling like this inherently produces a lousy result. You can run games at their original resolution if your eyes start bleeding: just hit the Start button to open the menu and switch fullscreen off.
-
 # xsytem35-sdl2
 
 アリスソフトのゲームエンジン System3.x のフリー実装である xsystem35 を SDL2 に対応して、emscripten でコンパイルできるようにしたものです。
