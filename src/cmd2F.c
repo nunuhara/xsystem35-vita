@@ -1329,9 +1329,9 @@ void commands2F7B() {
 void commands2F7C() {
 	if (!nact->files.ain) {
 		if (nact->files.gr_fname) {
-			SYSERROR("System39.ain is needed to run this game. Make sure you have an \"Ain\" line in %s.\n", nact->files.gr_fname);
+			sys_error("System39.ain is needed to run this game. Make sure you have an \"Ain\" line in %s.", nact->files.gr_fname);
 		} else {
-			SYSERROR("Ain file is needed to run this game. Make sure you have System39.ain file in the game directory.\n");
+			sys_error("Ain file is needed to run this game. Make sure you have System39.ain file in the game directory.");
 		}
 	}
 
@@ -1446,7 +1446,7 @@ void commands2F84() {
 void commands2F85() {
 	int *vResult = getCaliVariable();
 	
-	*vResult = SYSVAR_MAX;
+	*vResult = nact->ain.varnum;
 	
 	DEBUG_COMMAND("varGetNumof %p:\n", vResult);
 }

@@ -30,10 +30,16 @@
 #include "xsystem35.h"
 #include "scenario.h"
 
+typedef struct {
+	int *pointvar;
+	int page;
+	int offset;
+} VariableAttributes;
+
 /* システム変数 */
 int sysVar[SYSVAR_MAX];
 /* 配列変数の情報 */
-arrayVarStruct sysVarAttribute[SYSVAR_MAX];
+static VariableAttributes attributes[SYSVAR_MAX];
 /* 配列本体 */
 arrayVarBufferStruct arrayVarBuffer[ARRAYVAR_PAGEMAX];
 /* 64bit変数 */
@@ -44,12 +50,65 @@ static char **strVar;
 int strvar_cnt = STRVAR_MAX;
 int strvar_len = STRVAR_LEN;
 
+int preVarPage;      /* 直前にアクセスした変数のページ */
+int preVarIndex;     /* 直前にアクセスした変数のINDEX */
+int preVarNo;        /* 直前にアクセスした変数の番号 */
+
 static char *advance(const char *s, int n) {
 	while (*s && n > 0) {
 		s = advance_char(s, nact->encoding);
 		n--;
 	}
 	return (char *)s;
+}
+
+int *v_ref(int var) {
+	VariableAttributes *attr = &attributes[var];
+	preVarPage = attr->page;
+	preVarNo   = var;
+
+	if (attr->page == 0) {
+		// Normal variable access
+		preVarIndex = var;
+		return sysVar + var;
+	}
+
+	// Implicit array access
+	int *index = attr->pointvar;
+	int page   = attr->page;
+	int offset = attr->offset;
+	if (*index + offset >= arrayVarBuffer[page - 1].size) {
+		WARNING("%03d:%05x: ArrayIndexOutOfBounds (%d, %d, %d, %d)\n", sl_getPage(), sl_getIndex(), var, *index, page, offset);
+		return NULL;
+	}
+	preVarIndex = offset + *index;
+	return arrayVarBuffer[page - 1].value + offset + *index;
+}
+
+int *v_ref_indexed(int var, int index) {
+	VariableAttributes *attr = &attributes[var];
+	preVarPage = attr->page;
+	preVarNo   = var;
+
+	if (attr->page == 0) {
+		// If VAR_n is not an array variable, VAR_n[i] points to VAR_(n+i).
+		if ((var + index) >= SYSVAR_MAX) {
+			WARNING("%03d:%05x: ArrayIndexOutOfBounds (%d, %d)\n", sl_getPage(), sl_getIndex(), var, index);
+			return NULL;
+		}
+		preVarIndex = var + index;
+		return sysVar + var + index;
+	}
+
+	// Indexed array access
+	int page   = attr->page;
+	int offset = attr->offset;
+	if (offset + index >= arrayVarBuffer[page - 1].size) {
+		WARNING("%03d:%05x: ArrayIndexOutOfBounds (%d, %d, %d, %d)\n", sl_getPage(), sl_getIndex(), var, index, page, offset);
+		return NULL;
+	}
+	preVarIndex = offset + index;
+	return arrayVarBuffer[page - 1].value + offset + index;
 }
 
 /* 配列バッファの確保 DC ,page = 1~ */
@@ -78,15 +137,15 @@ extern boolean v_defineArrayVar(int datavar, int *pointvar, int offset, int page
 	if (page    < 0 || page    >  ARRAYVAR_PAGEMAX - 1)          { return false; }
 	if (offset  < 0 || offset  >= arrayVarBuffer[page - 1].size) { return false; }
 	
-	sysVarAttribute[datavar].pointvar = pointvar;
-	sysVarAttribute[datavar].page     = page;
-	sysVarAttribute[datavar].offset   = offset;
+	attributes[datavar].pointvar = pointvar;
+	attributes[datavar].page     = page;
+	attributes[datavar].offset   = offset;
 	return true;
 }
 
 /* 配列変数の割り当て解除 DR */
 extern boolean v_releaseArrayVar(int datavar) {
-	sysVarAttribute[datavar].page = 0;
+	attributes[datavar].page = 0;
 	return true;
 }
 
@@ -305,40 +364,3 @@ void svar_replaceAll(int no, int pattern, int replacement) {
 	svar_append(no, start);
 	free(src);
 }
-
-#ifdef DEBUG
-
-void debug_showvariable() {
-	int i,j,k;
-	int *var;
-	FILE *fp = fopen("VARIABLES.TXT","a");
-	if (fp == NULL) return;
-
-	fprintf(fp, "Page = %d, index = %x\n", sl_getPage(), sl_getIndex());
-
-	var = &sysVar[0];
-	fprintf(fp, "sysVar\n");
-	for (i = 0; i < SYSVAR_MAX; i+=10) {
-		for (j = 0; j < 10; j++) {
-			fprintf(fp, "%d,", *var); var++;
-		}
-		fprintf(fp, "\n");
-	}
-
-	for (i = 0; i < ARRAYVAR_PAGEMAX; i++) {
-		if (arrayVarBuffer[i].value != NULL) {
-			fprintf(fp, "ArrayPage[%d],size=%d\n",i,arrayVarBuffer[i].size);
-			var = arrayVarBuffer[i].value;
-			for (j = 0; j < arrayVarBuffer[i].size; j+=10) {
-				for (k = 0; k < 10; k++) {
-					fprintf(fp, "%d,", *var); var++;
-				}
-				fprintf(fp, "\n");
-			}
-		}
-	}
-
-	fclose(fp);
-}
-
-#endif

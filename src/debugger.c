@@ -18,6 +18,7 @@
  */
 
 #include <assert.h>
+#include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
 #include "debugger.h"
@@ -27,6 +28,7 @@
 #include "ald_manager.h"
 #include "scenario.h"
 #include "nact.h"
+#include "variable.h"
 
 #define INTERNAL_BREAKPOINT_NO -1
 
@@ -46,9 +48,8 @@ static struct {
 
 void dbg_init(const char *symbols_path, boolean use_dap) {
 	dbg_impl = use_dap ? &dbg_dap_impl : &dbg_cui_impl;
-	dbg_impl->init();
+	dbg_impl->init(symbols_path);
 	dbg_state = DBG_STOPPED_ENTRY;
-	symbols = dsym_load(symbols_path);
 }
 
 void dbg_quit() {
@@ -68,6 +69,204 @@ int dbg_lookup_var(const char *name) {
 		}
 	}
 	return -1;
+}
+
+static const char *eval_input;
+static jmp_buf eval_jmp_buf;
+static char *eval_result;
+static size_t eval_result_size;
+static int eval_expr(void);
+
+static void eval_error(char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	vsnprintf(eval_result, eval_result_size, format, args);
+	va_end(args);
+
+	longjmp(eval_jmp_buf, 1);
+}
+
+static char next_char(void) {
+	while (isspace(*eval_input))
+		eval_input++;
+	return *eval_input;
+}
+
+static boolean consume(char c) {
+	if (next_char() != c)
+		return false;
+	eval_input++;
+	return true;
+}
+
+static void expect(char c) {
+	if (next_char() != c)
+		eval_error("syntax error");
+	eval_input++;
+}
+
+static int clamp(int val) {
+	return val > 0xffff ? 0xffff
+		: val < 0 ? 0
+		: val;
+}
+
+static boolean is_identifier(uint8_t c) {
+	return isalnum(c) || !isascii(c) || c == '_' || c == '.';
+}
+
+static int parse_number(void) {
+	int base = 10;
+	if (eval_input[0] == '0' && tolower(eval_input[1]) == 'x') {
+		base = 16;
+		eval_input += 2;
+	} else if (eval_input[0] == '0' && tolower(eval_input[1]) == 'b') {
+		base = 2;
+		eval_input += 2;
+	}
+	char *p;
+	long val = strtol(eval_input, &p, base);
+	eval_input = p;
+	return clamp(val);
+}
+
+static int eval_variable(void) {
+	const char *top = eval_input;
+	while (is_identifier(*eval_input))
+		eval_input++;
+	if (top == eval_input)
+		eval_error("syntax error");
+
+	char *buf = alloca(eval_input - top + 1);
+	strncpy(buf, top, eval_input - top);
+	buf[eval_input - top] = '\0';
+	int var = dbg_lookup_var(buf);
+	if (var < 0)
+		eval_error("unknown variable \"%s\"", buf);
+	if (consume('[')) {
+		int index = eval_expr();
+		expect(']');
+		return *v_ref_indexed(var, index);;
+	} else {
+		return *v_ref(var);
+	}
+}
+
+static int eval_prim(void) {
+	if (consume('(')) {
+		int val = eval_expr();
+		expect(')');
+		return val;
+	}
+	if (isdigit(next_char()))
+		return parse_number();
+
+	return eval_variable();
+}
+
+static int eval_mul(void) {
+	int val = eval_prim();
+	for (;;) {
+		if (consume('*')) {
+			val = clamp(val * eval_prim());
+		} else if (consume('/')) {
+			int rhs = eval_prim();
+			val = rhs ? val / rhs : 0;
+		} else if (consume('%')) {
+			int rhs = eval_prim();
+			val = rhs ? val % rhs : 0;
+		} else {
+			break;
+		}
+	}
+	return val;
+}
+
+static int eval_add(void) {
+	int val = eval_mul();
+	for (;;) {
+		if (consume('+'))
+			val = clamp(val + eval_mul());
+		else if (consume('-'))
+			val = clamp(val - eval_mul());
+		else
+			break;
+	}
+	return val;
+}
+
+static int eval_bit(void) {
+	int val = eval_add();
+	for (;;) {
+		if (consume('&'))
+			val = val & eval_add();
+		else if (consume('|'))
+			val = val | eval_add();
+		else if (consume('^'))
+			val = val ^ eval_add();
+		else
+			break;
+	}
+	return val;
+}
+
+static int eval_compare(void) {
+	int val = eval_bit();
+	for (;;) {
+		if (consume('<')) {
+			if (consume('='))
+				val = val <= eval_bit() ? 1 : 0;
+			else
+				val = val < eval_bit() ? 1 : 0;
+		} else if (consume('>')) {
+			if (consume('='))
+				val = val >= eval_bit() ? 1 : 0;
+			else
+				val = val > eval_bit() ? 1 : 0;
+		} else {
+			break;
+		}
+	}
+	return val;
+}
+
+static int eval_expr(void) {
+	int val = eval_compare();
+	for (;;) {
+		if (consume('=')) {
+			val = val == eval_compare() ? 1 : 0;
+		} else if (consume('\\')) {
+			val = val != eval_compare() ? 1 : 0;
+		} else {
+			break;
+		}
+	}
+	return val;
+}
+
+static int eval_condition(const char *expr) {
+	eval_input = expr;
+	eval_result = NULL;
+	eval_result_size = 0;
+	if (!setjmp(eval_jmp_buf)) {
+		return eval_expr();
+	} else {
+		return 0;
+	}
+}
+
+boolean dbg_evaluate(const char *expr, char *result, size_t result_size) {
+	eval_input = expr;
+	eval_result = result;
+	eval_result_size = result_size;
+	if (!setjmp(eval_jmp_buf)) {
+		int val = eval_expr();
+		expect('\0');
+		snprintf(result, result_size, "%d", val);
+		return true;
+	} else {
+		return false;
+	}
 }
 
 Breakpoint *dbg_find_breakpoint(int page, int addr) {
@@ -101,12 +300,23 @@ Breakpoint *dbg_set_breakpoint(int page, int addr, boolean is_internal) {
 	return bp;
 }
 
+boolean dbg_set_breakpoint_condition(Breakpoint *bp, const char *condition, char *err, size_t errsize) {
+	if (!dbg_evaluate(condition, err, errsize))
+		return false;
+	if (bp->condition)
+		free(bp->condition);
+	bp->condition = strdup(condition);
+	return true;
+}
+
 boolean dbg_delete_breakpoint(int no) {
 	Breakpoint *prev = NULL;
 	for (Breakpoint *bp = breakpoints; bp; bp = bp->next) {
 		if (bp->no == no) {
 			assert(bp->dfile->data[bp->addr] == BREAKPOINT);
 			bp->dfile->data[bp->addr] = bp->restore_op;
+			if (bp->condition)
+				free(bp->condition);
 			ald_freedata(bp->dfile);
 			if (prev)
 				prev->next = bp->next;
@@ -144,6 +354,9 @@ BYTE dbg_handle_breakpoint(int page, int addr) {
 	Breakpoint *bp = dbg_find_breakpoint(page, addr);
 	if (!bp)
 		SYSERROR("Illegal BREAKPOINT instruction");
+
+	if (bp->condition && !eval_condition(bp->condition))
+		return bp->restore_op;
 
 	dbg_state = bp->no == INTERNAL_BREAKPOINT_NO ?
 		DBG_STOPPED_NEXT : DBG_STOPPED_BREAKPOINT;
@@ -324,4 +537,13 @@ void dbg_main(void) {
 void dbg_onsleep(void) {
 	if (dbg_impl)
 		dbg_impl->onsleep();
+}
+
+boolean dbg_console_vprintf(const char *format, va_list ap) {
+	if (!dbg_impl || !dbg_impl->console_output)
+		return false;
+	char buf[1024];
+	vsnprintf(buf, sizeof(buf), format, ap);
+	dbg_impl->console_output(buf);
+	return true;
 }

@@ -68,21 +68,21 @@ static void send_json(cJSON *json) {
 	cJSON_free(json);
 }
 
-static void emit_initialized_event() {
+static void emit_initialized_event(void) {
 	cJSON *event = cJSON_CreateObject();
 	cJSON_AddStringToObject(event, "type", "event");
 	cJSON_AddStringToObject(event, "event", "initialized");
 	send_json(event);
 }
 
-static void emit_terminated_event() {
+static void emit_terminated_event(void) {
 	cJSON *event = cJSON_CreateObject();
 	cJSON_AddStringToObject(event, "type", "event");
 	cJSON_AddStringToObject(event, "event", "terminated");
 	send_json(event);
 }
 
-static void emit_stop_event() {
+static void emit_stop_event(void) {
 	const char *reason;
 	switch (dbg_state) {
 	case DBG_STOPPED_ENTRY: reason = "entry"; break;
@@ -102,10 +102,33 @@ static void emit_stop_event() {
 	send_json(event);
 }
 
+static void emit_output_event(const char *output) {
+	cJSON *event = cJSON_CreateObject(), *body;
+	cJSON_AddStringToObject(event, "type", "event");
+	cJSON_AddStringToObject(event, "event", "output");
+	cJSON_AddItemToObjectCS(event, "body", body = cJSON_CreateObject());
+	cJSON_AddStringToObject(body, "output", output);
+
+	const char *src = dsym_page2src(symbols, nact->current_page);
+	if (src)
+		cJSON_AddItemToObjectCS(body, "source", create_source(src));
+	int line = dsym_addr2line(symbols, nact->current_page, nact->current_addr);
+	if (line >= 0)
+		cJSON_AddNumberToObject(body, "line", line);
+
+	send_json(event);
+}
+
 static void cmd_initialize(cJSON *args, cJSON *resp) {
+	if (!symbols) {
+		cJSON_AddBoolToObject(resp, "success", false);
+		cJSON_AddStringToObject(resp, "message", "xsystem35: Cannot load debug symbols");
+		return;
+	}
 	cJSON *body;
 	cJSON_AddBoolToObject(resp, "success", true);
 	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
+	cJSON_AddBoolToObject(body, "supportsConditionalBreakpoints", true);
 	cJSON_AddBoolToObject(body, "supportsConfigurationDoneRequest", true);
 	cJSON_AddBoolToObject(body, "supportsEvaluateForHovers", true);
 	cJSON_AddBoolToObject(body, "supportsSetVariable", true);
@@ -150,10 +173,10 @@ static void cmd_stackTrace(cJSON *args, cJSON *resp) {
 static void cmd_setBreakpoints(cJSON *args, cJSON *resp) {
 	cJSON *source = cJSON_GetObjectItemCaseSensitive(args, "source");
 	cJSON *source_name = cJSON_GetObjectItemCaseSensitive(source, "name");
-	cJSON *lines = cJSON_GetObjectItemCaseSensitive(args, "lines");
-	if (!cJSON_IsString(source_name) || !cJSON_IsArray(lines)) {
+	cJSON *in_bps = cJSON_GetObjectItemCaseSensitive(args, "breakpoints");
+	if (!cJSON_IsString(source_name) || !cJSON_IsArray(in_bps)) {
 		cJSON_AddBoolToObject(resp, "success", false);
-		// TODO: add message
+		cJSON_AddStringToObject(resp, "message", "invalid arguments");
 		return;
 	}
 	const char *filename = source_name->valuestring;
@@ -161,34 +184,50 @@ static void cmd_setBreakpoints(cJSON *args, cJSON *resp) {
 
 	dbg_delete_breakpoints_in_page(page);
 
-	cJSON *body, *breakpoints;
+	cJSON *body, *out_bps;
 	cJSON_AddBoolToObject(resp, "success", true);
 	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
-	cJSON_AddItemToObjectCS(body, "breakpoints", breakpoints = cJSON_CreateArray());
+	cJSON_AddItemToObjectCS(body, "breakpoints", out_bps = cJSON_CreateArray());
 
-	cJSON *line;
-	cJSON_ArrayForEach(line, lines) {
+	char message[256];
+	cJSON *srcbp;
+	cJSON_ArrayForEach(srcbp, in_bps) {
 		cJSON *item = cJSON_CreateObject();
-		cJSON_AddItemToArray(breakpoints, item);
+		cJSON_AddItemToArray(out_bps, item);
 
+		cJSON *line = cJSON_GetObjectItemCaseSensitive(srcbp, "line");
 		int line_no = line->valueint;
 		int addr = dsym_line2addr(symbols, page, line_no);
 		if (page < 0) {
-			fprintf(stderr, "No source file named %s.\n", filename);
+			snprintf(message, sizeof(message), "no source file named %s", filename);
 			cJSON_AddBoolToObject(item, "verified", false);
+			cJSON_AddStringToObject(item, "message", message);
 			continue;
 		}
 		if (addr < 0) {
-			fprintf(stderr, "No line %d in file %s.\n", line_no, filename);
+			snprintf(message, sizeof(message), "no line %d in file %s", line_no, filename);
 			cJSON_AddBoolToObject(item, "verified", false);
+			cJSON_AddStringToObject(item, "message", message);
 			continue;
 		}
 		Breakpoint *bp = dbg_set_breakpoint(page, addr, false);
 		if (!bp) {
-			fprintf(stderr, "Failed to set breakpoint at %d:0x%x\n", page, addr);
+			snprintf(message, sizeof(message), "failed to set breakpoint at %d:0x%x", page, addr);
 			cJSON_AddBoolToObject(item, "verified", false);
+			cJSON_AddStringToObject(item, "message", message);
 			continue;
 		}
+
+		cJSON *condition = cJSON_GetObjectItemCaseSensitive(srcbp, "condition");
+		if (condition && cJSON_IsString(condition)) {
+			if (!dbg_set_breakpoint_condition(bp, condition->valuestring, message, sizeof(message))) {
+				dbg_delete_breakpoint(bp->no);
+				cJSON_AddBoolToObject(item, "verified", false);
+				cJSON_AddStringToObject(item, "message", message);
+				continue;
+			}
+		}
+
 		line_no = dsym_addr2line(symbols, page, addr);
 		cJSON_AddNumberToObject(item, "id", bp->no);
 		cJSON_AddBoolToObject(item, "verified", true);
@@ -201,25 +240,20 @@ static void cmd_evaluate(cJSON *args, cJSON *resp) {
 	cJSON *expression = cJSON_GetObjectItemCaseSensitive(args, "expression");
 	if (!cJSON_IsString(expression)) {
 		cJSON_AddBoolToObject(resp, "success", false);
-		// TODO: add message
+		cJSON_AddStringToObject(resp, "message", "invalid arguments");
 		return;
 	}
-	const char *varname = expression->valuestring;
-	int var = dbg_lookup_var(varname);
-	if (var < 0) {
-		fprintf(stderr, "Unrecognized variable name \"%s\".\n", varname);
-		// TODO: add message
+	char buf[256];
+	if (!dbg_evaluate(expression->valuestring, buf, sizeof(buf))) {
 		cJSON_AddBoolToObject(resp, "success", false);
+		cJSON_AddStringToObject(resp, "message", buf);
 		return;
 	}
-
-	char result[20];
-	sprintf(result, "%d", sysVar[var]);
 
 	cJSON *body;
 	cJSON_AddBoolToObject(resp, "success", true);
 	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
-	cJSON_AddStringToObject(body, "result", result);
+	cJSON_AddStringToObject(body, "result", buf);
 	cJSON_AddNumberToObject(body, "variablesReference", 0);
 }
 
@@ -302,7 +336,7 @@ static void cmd_variables(cJSON *args, cJSON *resp) {
 			cJSON_AddItemToArray(variables, var);
 			cJSON_AddStringToObject(var, "name", dsym_variable_name(symbols, i));
 			char value[20];
-			sprintf(value, "%d", sysVar[i]);
+			sprintf(value, "%d", *v_ref(i));
 			cJSON_AddStringToObject(var, "value", value);
 			cJSON_AddNumberToObject(var, "variablesReference", 0);
 		}
@@ -358,13 +392,13 @@ static void cmd_setVariable(cJSON *args, cJSON *resp) {
 			cJSON_AddStringToObject(resp, "message", "syntax error");
 			return;
 		}
-		sysVar[var] = parsed_value & 0xffff;
+		*v_ref(var) = parsed_value & 0xffff;
 
 		cJSON *body;
 		cJSON_AddBoolToObject(resp, "success", true);
 		cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
 		char new_value[20];
-		sprintf(new_value, "%d", sysVar[var]);
+		sprintf(new_value, "%d", *v_ref(var));
 		cJSON_AddStringToObject(body, "value", new_value);
 	} else if (cJSON_IsNumber(vref) && vref->valueint == VREF_STRINGS) {
 		int idx;
@@ -546,7 +580,7 @@ static int read_command_thread(void *data) {
 	return 0;
 }
 
-static void dbg_dap_init(void) {
+static void dbg_dap_init(const char *symbols_path) {
 	cmd_queue.mutex = SDL_CreateMutex();
 	cmd_queue.cond_nonempty = SDL_CreateCond();
 
@@ -556,6 +590,8 @@ static void dbg_dap_init(void) {
 #endif
 
 	SDL_CreateThread(read_command_thread, "Debugger", NULL);
+
+	symbols = dsym_load(symbols_path);
 
 	while (!initialized) {
 		char *msg = cmdq_dequeue();
@@ -598,4 +634,5 @@ DebuggerImpl dbg_dap_impl = {
 	.quit = dbg_dap_quit,
 	.repl = dbg_dap_repl,
 	.onsleep = dbg_dap_onsleep,
+	.console_output = emit_output_event,
 };

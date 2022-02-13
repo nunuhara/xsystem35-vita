@@ -89,7 +89,6 @@ static void    sys35_ParseOption(int *argc, char **argv);
 static void    check_profile();
 
 /* for debugging */
-static FILE *fpdebuglog;
 static int debuglv = DEBUGLEVEL;
 enum {
 	DEBUGGER_DISABLED,
@@ -146,11 +145,10 @@ static void sys35_usage(boolean verbose) {
 	
 #ifdef DEBUG
 	puts(" -debuglv #     : debug level");
-	puts("                :  0: critical error message only ");
-	puts("                :  1: + waring message");
-	puts("                :  2: + not implemented command message");
-	puts("                :  5: + implemented command (write to logfile)");
-	puts("                :  6: + message (write to logfile)");
+	puts("                :  1: warings");
+	puts("                :  2: unimplemented commands");
+	puts("                :  5: command trace");
+	puts("                :  6: message trace");
 #endif  
 	puts(" -noantialias   : never use antialiased string");
 	puts(" -fullscreen    : start with fullscreen");
@@ -188,29 +186,22 @@ void sys_message(int lv, char *format, ...) {
 	};
 	int prio = prio_table[min(lv, 5)];
 	__android_log_vprint(prio, "xsystem35", format, args);
-#elif defined (DEBUG)
-	if (lv >= 5) {
-		vfprintf(fpdebuglog, format, args);
-		fflush(fpdebuglog);
-	} else {
-		vfprintf(stderr, format, args);
-	}
 #else
-	vfprintf(stderr, format, args);
+	if (!dbg_console_vprintf(format, args))
+		vfprintf(stderr, format, args);
 #endif
 	va_end(args);
 }
 
 void sys_error(char *format, ...) {
+	char buf[512];
 	va_list args;
 	
 	va_start(args, format);
-#ifdef __ANDROID__
-	__android_log_vprint(ANDROID_LOG_FATAL, "xsystem35", format, args);
-#else
-	vfprintf(stderr, format, args);
-#endif
+	vsnprintf(buf, sizeof buf, format, args);
 	va_end(args);
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "xsystem35", buf, NULL);
+
 	sys35_remove();
 	exit(1);
 }
@@ -270,11 +261,6 @@ static void sys35_remove() {
 	ags_remove();
 #ifdef ENABLE_GTK
 	s39ini_remove();
-#endif
-#if DEBUG
-	if (debuglv >= 3) {
-		fclose(fpdebuglog);
-	}
 #endif
 }
 
@@ -530,7 +516,7 @@ static void init_signalhandler() {
 
 static void registerGameFiles(void) {
 	if (nact->files.cnt[DRIFILE_SCO] == 0)
-		SYSERROR("No Scenario data available\n");
+		SYSERROR("No Scenario data available");
 	for (int type = 0; type < DRIFILETYPEMAX; type++) {
 		boolean use_mmap = true;
 		if (debugger_mode != DEBUGGER_DISABLED && type == DRIFILE_SCO) {
@@ -573,13 +559,6 @@ int main(int argc, char **argv) {
 	check_profile();
 	sys35_ParseOption(&argc, argv);
 	
-#if DEBUG
-	if (debuglv >= 5) {
-		if (NULL == (fpdebuglog = fopen(DEBUGLOGFILE, "w"))) {
-			fpdebuglog = stderr;
-		}
-	}
-#endif
 	if (!initGameResource(&nact->files, gameResourceFile)) {
 #ifdef _WIN32
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "xsystem35", "Cannot find scenario file (*SA.ALD)", NULL);
