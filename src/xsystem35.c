@@ -55,6 +55,7 @@
 #endif
 
 #include "nact.h"
+#include "debugger.h"
 #include "portab.h"
 #include "xsystem35.h"
 #include "nact.h"
@@ -90,6 +91,11 @@ static void    check_profile();
 /* for debugging */
 static FILE *fpdebuglog;
 static int debuglv = DEBUGLEVEL;
+enum {
+	DEBUGGER_DISABLED,
+	DEBUGGER_CUI,
+	DEBUGGER_DAP,
+} debugger_mode = DEBUGGER_DISABLED;
 
 static int audio_buffer_size = 0;
 
@@ -128,6 +134,9 @@ static void sys35_usage(boolean verbose) {
 #ifdef ENABLE_MIDI_SEQMIDI
 	puts(" -Ms?           : Sequenceer device (?:devicenumber)");
 #endif
+#ifdef ENABLE_MIDI_PORTMIDI
+	puts(" -Mp?           : ALSA (via PortMidi) (?:devicenumber)");
+#endif
 	puts(" -M0            : Disable MIDI output");
 	
 	puts(" -devjoy device : joystick device index (0-)");
@@ -145,6 +154,7 @@ static void sys35_usage(boolean verbose) {
 #endif  
 	puts(" -noantialias   : never use antialiased string");
 	puts(" -fullscreen    : start with fullscreen");
+	puts(" -integerscale  : use integer scaling when resizing");
 	puts(" -noimagecursor : disable image cursor");
 	puts(" -version       : show version");
 	puts(" -h             : show this message");
@@ -224,7 +234,7 @@ static void sys35_init() {
 	
 	nact_init();
 	
-	scenario_init();
+	sl_init();
 
 	v_initVars();
 	
@@ -255,6 +265,7 @@ static void sys35_init() {
 }
 
 static void sys35_remove() {
+	dbg_quit();
 	mus_exit(); 
 	ags_remove();
 #ifdef ENABLE_GTK
@@ -301,6 +312,10 @@ static void sys35_ParseOption(int *argc, char **argv) {
 			}
 			fclose(fp);
 			gameResourceFile = argv[i + 1];
+		} else if (0 == strcmp(argv[i], "-debug")) {
+			debugger_mode = DEBUGGER_CUI;
+		} else if (0 == strcmp(argv[i], "-debug_dap")) {
+			debugger_mode = DEBUGGER_DAP;
 		} else if (0 == strcmp(argv[i], "-devcd")) {
 			if (argv[i + 1] != NULL) {
 				cd_set_devicename(argv[i + 1]);
@@ -340,6 +355,8 @@ static void sys35_ParseOption(int *argc, char **argv) {
 		} else if (0 == strcmp(argv[i], "-version")) {
 			puts(VERSION);
 			exit(0);
+		}  else if (0 == strcmp(argv[i], "-integerscale")) {
+			sdl_setIntegerScaling(TRUE);
 		}
 	}
 }
@@ -467,6 +484,13 @@ static void check_profile() {
 		vita_joystick_map(VITA_START, param);
 	}
 #endif
+	/* enable integer scaling */
+	param = get_profile("integerscale");
+	if (param) {
+		if (0 == strcmp(param, "Yes")) {
+			sdl_setIntegerScaling(TRUE);
+		}
+	}
 }
 
 #ifdef HAVE_SIGACTION
@@ -507,8 +531,14 @@ static void init_signalhandler() {
 static void registerGameFiles(void) {
 	if (nact->files.cnt[DRIFILE_SCO] == 0)
 		SYSERROR("No Scenario data available\n");
-	for (int type = 0; type < DRIFILETYPEMAX; type++)
-		ald_init(type, nact->files.game_fname[type], nact->files.cnt[type]);
+	for (int type = 0; type < DRIFILETYPEMAX; type++) {
+		boolean use_mmap = true;
+		if (debugger_mode != DEBUGGER_DISABLED && type == DRIFILE_SCO) {
+			// Do not mmap scenario files so that BREAKPOINT instructions can be inserted.
+			use_mmap = false;
+		}
+		ald_init(type, nact->files.game_fname[type], nact->files.cnt[type], use_mmap);
+	}
 	if (nact->files.save_path)
 		fc_init(nact->files.save_path);
 }
@@ -533,7 +563,7 @@ int main(int argc, char **argv) {
 		chdir(argv[2]);
 #endif
 #ifdef _WIN32
-	if (argc == 1) {
+	if (argc == 1 && !current_folder_has_ald()) {
 		if (!select_game_folder())
 			return 0;
 	}
@@ -579,6 +609,12 @@ int main(int argc, char **argv) {
 #endif
 	menu_init();
 	
+	if (debugger_mode != DEBUGGER_DISABLED) {
+		char symbols_path[500];
+		snprintf(symbols_path, sizeof(symbols_path), "%s.symbols", nact->files.game_fname[DRIFILE_SCO][0]);
+		dbg_init(symbols_path, debugger_mode == DEBUGGER_DAP);
+	}
+
 	nact_main();
 #ifdef __EMSCRIPTEN__
 	sdl_sleep(1000000000);

@@ -95,7 +95,8 @@ static int mouse_to_agsevent(int button) {
 	return 0;
 }
 
-static void send_agsevent(int type, int code) {
+EMSCRIPTEN_KEEPALIVE
+void send_agsevent(int type, int code) {
 	if (!nact->ags.eventcb)
 		return;
 	agsevent_t agse;
@@ -103,7 +104,12 @@ static void send_agsevent(int type, int code) {
 	agse.d1 = mousex;
 	agse.d2 = mousey;
 	agse.d3 = code;
-	nact->ags.eventcb(&agse);
+	nact->ags.eventcb(&agse);  // Async in emscripten
+
+#ifdef __EMSCRIPTEN__
+	// HACK: this ensures that callers of this function are instrumented.
+	emscripten_sleep(0);
+#endif
 }
 
 static void mouse_down(Uint8 button)

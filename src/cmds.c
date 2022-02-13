@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include "portab.h"
 #include "xsystem35.h"
+#include "scenario.h"
 #include "music.h"
 
 /* ぱにょ〜ん 異常シナリオ対策 */
@@ -126,7 +127,7 @@ void commandSL() {
 
 void commandSI() {
 	/* 指定した音源の接続状態を var に取得 */
-	int type = sys_getc();
+	int type = sl_getc();
 	int *var = getCaliVariable();
 	
 	if (type == 0) {        /* MIDI */
@@ -143,7 +144,7 @@ void commandSI() {
 void commandSG() {
 	/* MIDI演奏 */
 	static int loopcnt = 0;
-	int sw  = sys_getc();
+	int sw  = sl_getc();
 	int num, fnum, *var;
 	midiplaystate st;
 	
@@ -263,12 +264,14 @@ void commandSU() {
 		*var2 = 0;
 		if (dummy_pcm_in_play) dummy_pcm_in_play = FALSE;
 	} else {
-		*var1 = mus_pcm_get_playposition(var2);
+		*var2 = 0;
+		mus_pcm_get_playposition(var2);
+		*var1 = *var2 ? 1 : 0;
 		/* XXX for panyon_new */
-	        if (*var2 == 0){
+		if (*var2 == 0){
 			*var1 = dummy_pcm_in_play ? TRUE : FALSE;
-            		dummy_pcm_in_play = dummy_pcm_in_play ? FALSE : TRUE;
-        	}	
+			dummy_pcm_in_play = dummy_pcm_in_play ? FALSE : TRUE;
+		}
 	}
 	if (dummy_pcm_su_flag) {
 		*var1 = *var2 = 0;
@@ -338,8 +341,8 @@ void commandSM() {
 }
 
 void commandSX() {
-	int device = sys_getc();
-	int sw     = sys_getc();
+	int device = sl_getc();
+	int sw     = sl_getc();
 
 	switch(sw) {
 	case 1: {

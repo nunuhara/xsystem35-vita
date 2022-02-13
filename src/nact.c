@@ -35,6 +35,7 @@
 #include "ags.h"
 #include "counter.h"
 #include "nact.h"
+#include "debugger.h"
 #include "selection.h"
 #include "message.h"
 #include "msgskip.h"
@@ -54,12 +55,8 @@ MG コマンド: 表示時の ZH に依存
 
 */
 
-/* defined by cmd_check.c */
-extern void check_command(int c0);
 /* defined by cmdv.c */
 extern void va_animation();
-/* コマンド解析時の展開バッファ */
-static char msgbuf[512];
 /* 半角モード */
 static int msg_msgHankakuMode = 0; /* 0:全角 1:半角, 2: 無変換 */
 
@@ -74,33 +71,6 @@ void sys_setHankakuMode(int mode) {
 
 void sys_setCharacterEncoding(CharacterEncoding encoding) {
 	nact->encoding = encoding;
-}
-
-/* 文字列の取り出し */
-char *sys_getString(char term) {
-	int c0;
-	char *index = msgbuf;
-	
-	while ((c0 = sl_getc()) != (int)term) {
-		*index++ = c0;
-	}
-	*index = 0;
-	return msgbuf;
-}
-
-/* 特殊 const string */
-char *sys_getConstString() {
-	int c0;
-	char *index = msgbuf;
-
-	c0 = sl_getc();
-	
-	while ((c0 = sl_getc()) != 0) {
-		*index++ = ((c0 & 0xf0) >> 4) + ((c0 & 0x0f) << 4);
-	}
-	
-	*index = 0;
-	return msgbuf;
 }
 
 /* 選択肢・通常メッセージ振り分け */
@@ -138,56 +108,34 @@ void sys_addMsg(const char *str) {
 	}
 }
 
-/* 文字列抽出 */
-static int checkMessage() {
-	char *index = msgbuf;
-	int c0 = sl_getc();
-	
-	while (c0 == 0x20 || c0 >= 0x80) {
-		if (nact->encoding == UTF8) {
-			*index++ = (char)c0;
-		} else if (c0 == 0x20) {
-			*index++ = (char)c0;
-		} else if (c0 >= 0xe0) {
-			*index++ = (char)c0; *index++ = (char)sl_getc();
-		} else if (c0 >= 0xa0) {
-			*index++ = (char)c0;
-		} else {
-			*index++ = (char)c0; *index++ = (char)sl_getc();
-		}
-		c0 = sl_getc();
-	}
-	if (index != msgbuf) {
-		*index = 0;
-		sys_addMsg(msgbuf);
-	}
-	return c0;
-}
-
 void nact_main() {
 	reset_counter_high(SYSTEMCOUNTER_MSEC, 1, 0);
 
 	nact->frame_count = 0;
 	nact->cmd_count = 0;
 	nact->wait_vsync = FALSE;
-	
+
+	int cnt = 0;
 	while (!nact->is_quit) {
-		for (int cnt = 0; cnt < 10000; cnt++) {
-			if (nact->wait_vsync || nact->popupmenu_opened || nact->is_quit)
-				break;
-			DEBUG_MESSAGE("%d:%x\n", sl_getPage(), sl_getIndex());
-			int c0 = checkMessage();
-			check_command(c0);
-			nact->cmd_count++;
+		nact->current_page = sl_getPage();
+		nact->current_addr = sl_getIndex();
+		if (dbg_trapped())
+			dbg_main();
+
+		exec_command();
+		nact->cmd_count++;
+
+		if (++cnt >= 10000 || nact->wait_vsync || nact->popupmenu_opened || dbg_trapped()) {
+			nact->callback();  // Async in emscripten
+
+			if (!nact->is_message_locked)
+				sys_getInputInfo();
+
+			sdl_wait_vsync();
+			nact->frame_count++;
+			nact->wait_vsync = FALSE;
+			cnt = 0;
 		}
-		nact->callback();
-
-		if (!nact->is_message_locked)
-			sys_getInputInfo();
-
-		sdl_wait_vsync();
-		nact->frame_count++;
-		nact->wait_vsync = FALSE;
 	}
 }
 

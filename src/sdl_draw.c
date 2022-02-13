@@ -41,6 +41,7 @@
 #include "image.h"
 #include "nact.h"
 #include "input.h"
+#include "debugger.h"
 
 static int fadestep[256] =
 {0,1,3,4,6,7,9,10,12,14,15,17,18,20,21,23,25,26,28,29,31,32,34,36,37,39,40,
@@ -176,7 +177,7 @@ void sdl_updateScreen(void) {
 
 void sdl_sleep(int msec) {
 	sdl_updateScreen();
-
+	dbg_onsleep();
 #ifdef __EMSCRIPTEN__
 	emscripten_sleep(msec);
 #else
@@ -196,6 +197,7 @@ EM_JS(void, wait_vsync, (void), {
 
 void sdl_wait_vsync() {
 	sdl_updateScreen();
+	dbg_onsleep();
 #ifdef __EMSCRIPTEN__
 	wait_vsync();
 #else

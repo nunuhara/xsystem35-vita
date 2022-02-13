@@ -28,6 +28,7 @@
 #include "utfsjis.h"
 #include "variable.h"
 #include "xsystem35.h"
+#include "scenario.h"
 
 /* システム変数 */
 int sysVar[SYSVAR_MAX];
@@ -108,6 +109,10 @@ extern void svar_init(int cnt, int len) {
 		strVar[i] = NULL;
 	strvar_cnt = cnt;
 	strvar_len = len;
+}
+
+extern int svar_count(void) {
+	return strvar_cnt;
 }
 
 /* 変数の初期化 */

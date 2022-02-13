@@ -33,7 +33,7 @@ jobs:
         echo PATH: $PATH
 
     - name: Install Deps
-      run: pacman -S --noconfirm ${{ matrix.package }}-SDL2 ${{ matrix.package }}-SDL2_ttf ${{ matrix.package }}-SDL2_mixer ${{ matrix.package }}-libjpeg-turbo ${{ matrix.package }}-nsis ${{ matrix.package }}-ntldd-git
+      run: pacman -S --noconfirm ${{ matrix.package }}-SDL2 ${{ matrix.package }}-SDL2_ttf ${{ matrix.package }}-SDL2_mixer ${{ matrix.package }}-libjpeg-turbo ${{ matrix.package }}-cjson ${{ matrix.package }}-nsis ${{ matrix.package }}-ntldd-git
 
     - name: Checkout
       uses: actions/checkout@v2
@@ -50,11 +50,11 @@ jobs:
       working-directory: out/release
 
     - name: Package
-      working-directory: installer
-      run: ./make-installer.sh ../out/release ${{ matrix.installer }}.nsi
+      working-directory: tools/installer
+      run: ./make-installer.sh ../../out/release ${{ matrix.installer }}.nsi
 
     - name: Upload
       uses: actions/upload-artifact@v2
       with:
         name: ${{ matrix.installer }}
-        path: installer/${{ matrix.installer }}.exe
+        path: tools/installer/${{ matrix.installer }}.exe

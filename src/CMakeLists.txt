@@ -68,8 +68,14 @@ target_sources(xsystem35 PRIVATE
 target_sources(xsystem35 PRIVATE
   network.c)
 
+# Debugger
+if (ENABLE_DEBUGGER)
+  target_sources(xsystem35 PRIVATE
+    debug_symbol.c debugger.c debugger_cui.c debugger_dap.c)
+endif()
+
 if (WIN32)
-  target_sources(xsystem35 PRIVATE win/dialog.c win/resources.rc win/menubar.c)
+  target_sources(xsystem35 PRIVATE win/dialog.c win/resources.rc win/menubar.c win/console.c)
 endif()
 
 if (EMSCRIPTEN)
@@ -89,12 +95,12 @@ if (EMSCRIPTEN)
   target_link_options(xsystem35 PRIVATE
     "SHELL:-s ENVIRONMENT=web"
     "SHELL:-s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1"
-    "SHELL:-s ASYNCIFY_REMOVE=\"['SDL_Delay']\""
-    "SHELL:-s ASYNCIFY_IMPORTS=\"['muspcm_load_no','muspcm_load_mixlr','muspcm_waitend','wait_vsync','load_mincho_font']\""
-    "SHELL:-s ASYNCIFY_ADD=\"['commands2F60']\""
+    "SHELL:-s ASYNCIFY_REMOVE=SDL_Delay"
+    "SHELL:-s ASYNCIFY_IMPORTS=muspcm_load_no,muspcm_load_mixlr,muspcm_waitend,wait_vsync,load_mincho_font"
+    "SHELL:-s ASYNCIFY_ADD=commands2F60,nact_main,send_agsevent,cb_waitkey_sprite"
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     "SHELL:-s NO_EXIT_RUNTIME=1"
-    "SHELL:-s EXTRA_EXPORTED_RUNTIME_METHODS=\"['getValue','addRunDependency','removeRunDependency']\"")
+    "SHELL:-s EXPORTED_RUNTIME_METHODS=getValue,addRunDependency,removeRunDependency")
 
 elseif (ANDROID)
   target_link_libraries(xsystem35 PRIVATE SDL2 SDL2_ttf SDL2_mixer ${ndk_zlib} ${ndk_log})
@@ -142,6 +148,13 @@ else()  # non-emscripten, non-android
   endif()
   if (SDL2MIXER_FOUND)
     target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2MIXER)
+  endif()
+  if (ENABLE_DEBUGGER)
+    if (cJSON_FOUND)
+      target_link_libraries(xsystem35 PRIVATE PkgConfig::cJSON)
+    else()
+      target_link_libraries(xsystem35 PRIVATE ${cJSON})
+    endif()
   endif()
 
   install(TARGETS xsystem35 RUNTIME DESTINATION bin)
