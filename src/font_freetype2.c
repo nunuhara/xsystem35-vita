@@ -34,6 +34,7 @@
 #include "system.h"
 #include "font.h"
 #include "ags.h"
+#include "utfsjis.h"
 
 extern const unsigned short *s2u[];
 
@@ -58,20 +59,6 @@ static FONT *this;
 
 static void pixmap2comimg(BYTE *src, int x, int y, int w, int h, int src_bpl);
 static void pixmapmono2comimg(BYTE *src, int x, int y, int w, int h, int src_bpl);
-
-static int toUnicode(const unsigned char **msg) {
-	int code;
-	
-	if (**msg >= 0xa0 && **msg <= 0xdf) {
-		code = 0xff60 + (**msg) - 0xa0; (*msg)++;
-	} else if (**msg&0x80) {
-		code = s2u[**msg - 0x80][*(*msg+1) - 0x40];
-		(*msg) += 2;
-	} else {
-		code = **msg; (*msg)++;
-	}
-	return code;
-}
 
 static boolean select_charmap(FT_Face f, int type) {
 	int i;
@@ -154,11 +141,15 @@ static void font_ttf_sel_font(int type, int size) {
 }
 
 static void pixmap2comimg(BYTE *src, int x, int y, int w, int h, int src_bpl) {
-	int yy;
+	if (x < 0) {
+		w += x;
+		src -= x;
+		x = 0;
+	}
 	BYTE *dst = GETOFFSET_PIXEL(&img_glyph, x, y);
 	if (w <= 0) return;
 	
-	for (yy = 0; yy < h; yy++) {
+	for (int yy = 0; yy < h; yy++) {
 		memcpy(dst, src, w);
 		src += src_bpl;
 		dst += img_glyph.bytes_per_line;
@@ -197,21 +188,20 @@ static void clear_canvas(void) {
 	memset(img_glyph.pixel, 0, GLYPH_PIXMAP_WIDTH * GLYPH_PIXMAP_HEIGHT);
 }
 
-static agsurface_t *font_ttf_get_glyph(const unsigned char *_msg) {
+static agsurface_t *font_ttf_get_glyph(const char *str_utf8) {
 	FT_GlyphSlot   slot;
 	FT_UShort      code;
 	FT_Error       err;
 	FT_Pixel_Mode  pixelmode;
 	FT_Int         loadflag;
 	int x = 0;
-	const unsigned char *msg = _msg;
 	
 	if (fontset == NULL) return &img_glyph;
 	
 	clear_canvas();
 	
-	while (*msg) {
-		code = toUnicode(&msg);
+	while (*str_utf8) {
+		code = utf8_next_codepoint(&str_utf8);
 		
 		if (this->antialiase_on) {
 			loadflag = FT_LOAD_RENDER;
@@ -266,7 +256,7 @@ static agsurface_t *font_ttf_get_glyph(const unsigned char *_msg) {
 	return &img_glyph;
 }
 
-static int font_ttf_draw_glyph(int x, int y, const unsigned char *str, int col) {
+static int font_ttf_draw_glyph(int x, int y, const char *str_utf8, int col) {
 	return 0;
 }
 

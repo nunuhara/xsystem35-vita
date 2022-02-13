@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include "portab.h"
 #include "utfsjis.h"
@@ -359,6 +360,8 @@ void commandNI() { /* From Panyo */
 	ni_param.def = def;
 	ni_param.max = _max;
 	ni_param.min = _min;
+	if (!ni_param.title)
+		ni_param.title = strdup("");
 	
 	menu_inputnumber(&ni_param);
 	
@@ -375,13 +378,9 @@ void commandNI() { /* From Panyo */
 void commandNT() { /* From Panyo */
 	/* NIコマンドで表示するタイトルを設定する。*/
 	char *str = sys_getString(':');
-	char *t;
 
-	if (ni_param.title != NULL) {
-		free(ni_param.title);
-	}
-	t = sjis2utf(str);
-	ni_param.title = t;
+	free(ni_param.title);
+	ni_param.title = toUTF8(str);
 	
 	DEBUG_COMMAND("NT %p:\n", str);
 }

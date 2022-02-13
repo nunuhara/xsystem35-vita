@@ -26,7 +26,7 @@
 
 #include "portab.h"
 #include "graphics.h"
-#include "graphicsdevice.h"
+#include "sdl_core.h"
 
 #define SYS35KEY_NULL  0
 #define SYS35KEY_UP    1
@@ -50,6 +50,6 @@ extern boolean get_skipMode();
 extern boolean get_skipMode2();
 extern void set_hak_keymode(int key, int mode);
 
-#define sys_keywait(r,flg) Keywait(r,flg)
+#define sys_keywait(r,flg) sdl_keywait(r,flg)
 
 #endif /* __INPUT__ */

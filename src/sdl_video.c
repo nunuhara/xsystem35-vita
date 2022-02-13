@@ -182,8 +182,8 @@ static void makeDIB(int width, int height, int depth) {
 	image_setdepth(sdl_dibinfo->depth);
 }
 
-void sdl_setFontDevice(FONT *f) {
-        sdl_font = f;
+void sdl_setFontDevice(struct _FONT *f) {
+	sdl_font = f;
 }
 
 /* offscreen の設定 */
@@ -213,6 +213,69 @@ void sdl_setAutoRepeat(boolean bool) {
 	} else {
 		// SDL_EnableKeyRepeat(0, 0);
 	}
+}
+
+#ifdef VITA
+static void update_renderparams(void)
+{
+	if (sdl_fs_on) {
+		float hscale = (float)VITA_W / (float)view_w;
+		float vscale = (float)VITA_H / (float)view_h;
+		renderscale = min(hscale, vscale);
+	} else {
+		renderscale = 1;
+	}
+	renderoffset_x = 960/2 - (view_w*renderscale)/2;
+	renderoffset_y = 544/2 - (view_h*renderscale)/2;
+}
+
+#endif
+
+void sdl_FullScreen(boolean on) {
+#ifdef VITA
+	sdl_fs_on = on;
+	sdl_dirty = TRUE;
+	update_renderparams();
+#else
+	if (on && !sdl_fs_on) {
+		sdl_fs_on = TRUE;
+		SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+	} else if (!on && sdl_fs_on) {
+		sdl_fs_on = FALSE;
+		SDL_SetWindowFullscreen(sdl_window, 0);
+	}
+#endif
+}
+
+void sdl_setWindowSize(int x, int y, int w, int h) {
+	view_x = x;
+	view_y = y;
+
+	if (w == view_w && h == view_h) return;
+
+	view_w = w;
+	view_h = h;
+
+#ifndef __ANDROID__
+	SDL_SetWindowSize(sdl_window, w, h);
+#endif
+	if (sdl_display)
+		SDL_FreeSurface(sdl_display);
+	if (sdl_texture)
+		SDL_DestroyTexture(sdl_texture);
+	sdl_display = SDL_CreateRGBSurface(0, w, h, 32, 0, 0, 0, 0);
+	sdl_texture = SDL_CreateTexture(sdl_renderer, sdl_display->format->format,
+									SDL_TEXTUREACCESS_STATIC, w, h);
+#ifdef VITA
+	update_renderparams();
+#else
+	SDL_RenderSetLogicalSize(sdl_renderer, w, h);
+#endif
+
+	//ms_active = (SDL_GetAppState() & SDL_APPMOUSEFOCUS) ? TRUE : FALSE;
+#ifdef __EMSCRIPTEN__
+	EM_ASM( xsystem35.shell.windowSizeChanged(); );
+#endif
 }
 
 #ifdef __EMSCRIPTEN__

@@ -45,23 +45,23 @@ typedef enum {
  * information for display cg data
 */
 typedef struct {
-	CG_TYPE type;   /* cg format type             */
-	int x;          /* default display location x */
-	int y;          /* default display location y */
-	int width;      /* image width                */
-	int height;     /* image height               */
+	CG_TYPE type;    // cg format type
+	int x;           // default display location x
+	int y;           // default display location y
+	int width;       // image width
+	int height;      // image height
 	
-	BYTE *pic;      /* extracted pixel data            */
-	BYTE *alpha;    /* extracted alpha data if exists  */
-	Pallet256 *pal; /* extracted pallet data if exists */
+	BYTE *pic;       // extracted pixel data
+	BYTE *alpha;     // extracted alpha data if exists
+	Palette256 *pal; // extracted palette data if exists
 	
-	int vsp_bank;   /* pallet bank for vsp */
-	int pms_bank;   /* pallet bank for pms */
+	int vsp_bank;    // palette bank for vsp
+	int pms_bank;    // palette bank for pms
 	
-	int spritecolor; /* sprite color for vsp and pms8 */
-	int alphalevel;  /* alpha level of image */
+	int spritecolor; // sprite color for vsp and pms8
+	int alphalevel;  // alpha level of image
 	
-	int data_offset; /* pic offset for clipping */
+	int data_offset; // pic offset for clipping
 } cgdata;
 
 /*
@@ -81,7 +81,6 @@ extern void cg_load(int no, int flg);
 extern void cg_load_with_alpha(int cgno, int shadowno);
 extern int  cg_load_with_filename(char *fname_utf8, int x, int y);
 extern void cg_get_info(int no, MyRectangle *info);
-extern cgdata *cg_loadonly(int no);
 extern void cg_clear_display_loc();
 
 extern int cg_vspPB;

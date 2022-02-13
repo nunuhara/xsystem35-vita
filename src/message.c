@@ -188,7 +188,7 @@ void msg_putMessage(const char *m) {
 						       w + adj.width, msg.MsgFontSize + adj.height);
 					break;
 				}
-				Sleep(nact->messagewait_time * 10);
+				sdl_sleep(nact->messagewait_time * 10);
 			}
 			nact->callback();
 		}
@@ -263,10 +263,10 @@ void msg_openWindow(int W, int C1, int C2, int N, int M) {
 	case WINDOW_FRAME_EMPTY:
 		if (M == 0) {
 			/* show window */
+			if (msg.win->savedimg != NULL) {
+				ags_delRegion(msg.win->savedimg);
+			}
 			if (msg.win->save) {
-				if (msg.win->savedimg != NULL) {
-					ags_delRegion(msg.win->savedimg);
-				}
 				msg.win->savedimg = ags_saveRegion(msg.win->x, msg.win->y, msg.win->width, msg.win->height);
 			} else {
 				msg.win->savedimg = NULL;
@@ -283,10 +283,10 @@ void msg_openWindow(int W, int C1, int C2, int N, int M) {
 	case WINDOW_FRAME_LINE:
 		if (M == 0) {
 			/* show window*/
+			if (msg.win->savedimg != NULL) {
+				ags_delRegion(msg.win->savedimg);
+			}
 			if (msg.win->save) {
-				if (msg.win->savedimg != NULL) {
-					ags_delRegion(msg.win->savedimg);
-				}
 				msg.win->savedimg = ags_saveRegion(msg.win->x -8, msg.win->y -8, msg.win->width +16, msg.win->height +16);
 			} else {
 				msg.win->savedimg = NULL;
@@ -326,11 +326,14 @@ void msg_getMessageLocation(MyPoint *loc) {
 
 void msg_hitAnyKey() {
 	int w;
-	static BYTE hak[] = {0x81, 0xa5, 0x00}; /* ▼ */
+	const char *prompt[CHARACTER_ENCODING_MAX + 1] = {
+		[SHIFT_JIS] = "\x81\xa5",
+		[UTF8] = "▼",
+	};
 	
 	w = ags_drawString(msg.win->x + msg.win->width - msg.MsgFontSize,
 			   msg.win->y + msg.win->height - msg.MsgFontSize,
-			   hak, msg.HitAnyKeyMsgColor);
+			   prompt[nact->encoding], msg.HitAnyKeyMsgColor);
 	ags_updateArea(msg.win->x + msg.win->width  - msg.MsgFontSize,
 		       msg.win->y + msg.win->height - msg.MsgFontSize,
 		       w, msg.MsgFontSize);
@@ -349,17 +352,17 @@ static void drawLineFrame(Bcom_WindowInfo *i) {
 }
 
 static void copyMsgToStrVar(const char *m) {
-	if (v_strlen(msg.mg_curStrVarNo -1) == 0) {
-		v_strcpy(msg.mg_curStrVarNo -1, m);
+	if (svar_length(msg.mg_curStrVarNo) == 0) {
+		svar_set(msg.mg_curStrVarNo, m);
 	} else {
-		v_strcat(msg.mg_curStrVarNo -1, m);
+		svar_append(msg.mg_curStrVarNo, m);
 	}
 }
 
 static void msgget_at_r() {
 	if (msg.mg_policyR == 1) return;
 	msg.mg_curStrVarNo++;
-	// v_strcpy(msg.mg_curStrVarNo -1, NULL);
+	// svar_set(msg.mg_curStrVarNo, NULL);
 }
 
 static void msgget_at_a() {
@@ -369,10 +372,10 @@ static void msgget_at_a() {
 		break;
 	case 1:
 		msg.mg_curStrVarNo++;
-		v_strcpy(msg.mg_curStrVarNo -1, "");
+		svar_set(msg.mg_curStrVarNo, "");
 		break;
 	case 2:
-		v_strcpy(msg.mg_curStrVarNo -1, "");
+		svar_set(msg.mg_curStrVarNo, "");
 		msg.mg_curStrVarNo++;
 		break;
 	case 3:

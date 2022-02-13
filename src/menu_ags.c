@@ -5,12 +5,12 @@
 #include "config.h"
 #include "portab.h"
 #include "ags.h"
-#include "graphicsdevice.h"
 #include "input.h"
 #include "key.h"
 #include "menu.h"
 #include "menu_ags.h"
 #include "nact.h"
+#include "sdl_core.h"
 
 #define CHAR_RARROW "\x81\xa8"
 #define CHAR_LARROW "\x81\xa9"
@@ -266,7 +266,7 @@ void menu_gtkmainiteration() {
 		}
 		handle_input(current);
 		ags_updateFull();
-		WaitVsync();
+		sdl_wait_vsync();
 		nact->callback();
 	}
 

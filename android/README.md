@@ -6,7 +6,7 @@ Prebuilt APKs are [here](https://github.com/kichikuou/xsystem35-sdl2/releases).
 ## Build
 Prerequisites:
 - CMake >=3.13
-- Android SDK >=26
+- Android SDK >=28
 - Android NDK >=r15c
 
 ### Using Android Studio
@@ -15,20 +15,19 @@ Open this directory as an Android Studio project.
 ### Command line build
 Configure environment variables and run the `gradlew` script in this folder.
 
-Example build instructions (for Debian Stretch):
+Example build instructions (for Debian buster):
 ```sh
 # Install necessary packages
-sudo apt install git wget unzip default-jdk-headless ninja-build
-sudo apt -t stretch-backports install cmake
+sudo apt install git wget unzip default-jdk-headless cmake ninja-build
 
 # Install Android SDK / NDK
-export ANDROID_HOME=$HOME/android-sdk
-export PATH=$PATH:$ANDROID_HOME/tools
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
-unzip sdk-tools-linux-4333796.zip -d $ANDROID_HOME
-yes |$ANDROID_HOME/tools/bin/sdkmanager --licenses
-$ANDROID_HOME/tools/bin/sdkmanager ndk-bundle
+export ANDROID_SDK_ROOT=$HOME/android-sdk
+mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+wget https://dl.google.com/android/repository/commandlinetools-linux-6609375_latest.zip
+unzip commandlinetools-linux-6609375_latest.zip -d $ANDROID_SDK_ROOT/cmdline-tools
+yes |$ANDROID_SDK_ROOT/cmdline-tools/tools/bin/sdkmanager --licenses
+$ANDROID_SDK_ROOT/cmdline-tools/tools/bin/sdkmanager ndk-bundle
+export ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk-bundle
 
 # Check out and build xsystem35
 git clone https://github.com/kichikuou/xsystem35-sdl2.git

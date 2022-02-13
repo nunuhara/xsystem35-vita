@@ -29,8 +29,8 @@
 #include "portab.h"
 #include "cg.h"
 #include "graphics.h"
-#include "font.h"
 
+struct _FONT;
 
 /* マウスカーソルの種類 */
 #define CURSOR_ARROW     1
@@ -62,8 +62,6 @@ typedef enum {
 } ALPHA_DIB_COPY_TYPE;
 
 struct agsurface {
-	int no;      /* surface number, primary DIB is 0 */
-	
 	int width;   /* width of surface  */
 	int height;  /* height of surface */
 	int depth;   /* depth of surface, 8/15/16/24/32 is available */
@@ -71,12 +69,8 @@ struct agsurface {
 	int bytes_per_line;   /* bytes per line  */
 	int bytes_per_pixel;  /* bytes per pixel */
 	
-	BYTE *pixel; /* pointer to pixel data */
-	BYTE *alpha; /* pointer to alpha pixel data */
-
-	boolean has_alpha;
-	boolean has_pixel;
-
+	BYTE *pixel; /* pixel data (can be NULL) */
+	BYTE *alpha; /* alpha pixel data (can be NULL) */
 };
 typedef struct agsurface agsurface_t;
 
@@ -118,8 +112,8 @@ typedef struct ags_faderinfo ags_faderinfo_t;
 
 
 struct _ags {
-	Pallet256 pal;              /* system pallet */
-	boolean   pal_changed;      /* system pallet has changed */
+	Palette256 pal;             /* system palette */
+	boolean   pal_changed;      /* system palette has changed */
 	
 	MyDimension world_size;     /* size of off-screen */
 
@@ -136,7 +130,7 @@ struct _ags {
 	boolean fullscree_is_on;    /* if full-screen mode then true */
 	
 
-	FONT *font;                 /* font device */
+	struct _FONT *font;         /* font device */
 	int font_type;              /* active font type */
 	int font_size;              /* active font size */
 	agsurface_t *dib;           /* main surface */
@@ -163,7 +157,6 @@ extern boolean ags_check_param(int *x, int *y, int *w, int *h);
 extern boolean ags_check_param_xy(int *x, int *y);
 extern void    ags_intersection(MyRectangle *r1, MyRectangle *r2, MyRectangle *rst);
 extern agsurface_t *ags_getDIB();
-extern void ags_sync();
 
 /* 画面更新 */
 extern void ags_setExposeSwitch(boolean bool);
@@ -171,9 +164,9 @@ extern void ags_updateFull(void);
 extern void ags_updateArea(int x, int y, int width, int height);
 
 /* パレット関係 */
-extern void ags_setPallets(Pallet256 *src_pal, int src, int dst, int cnt);
-extern void ags_setPallet(int no, int red, int green, int blue);
-extern void ags_setPalletToSystem(int src, int cnt);
+extern void ags_setPalettes(Palette256 *src_pal, int src, int dst, int cnt);
+extern void ags_setPalette(int no, int red, int green, int blue);
+extern void ags_setPaletteToSystem(int src, int cnt);
 
 /* 描画関係 */
 extern void ags_drawRectangle(int x, int y, int w, int h, int col);
@@ -187,7 +180,7 @@ extern void ags_copyAreaSP(int sx, int sy, int w, int h, int dx, int dy, int col
 extern void ags_copyArea_shadow_withrate(int sx, int sy, int w, int h, int dx, int dy, int lv);
 
 extern void ags_wrapColor(int x, int y, int w, int h, int p1, int p2);
-extern void ags_getPixel(int x, int y, Pallet *cell);
+extern void ags_getPixel(int x, int y, Palette *cell);
 extern void ags_changeColorArea(int x, int y, int w, int h, int dst, int src, int cnt);
 
 extern void* ags_saveRegion(int x, int y, int w, int h);
@@ -226,7 +219,17 @@ extern void ags_whiteOut(int rate, boolean flg);
 extern void ags_fader_callback();
 
 /* フォント関連 */
+typedef enum {
+	FONT_FT2,
+	FONT_SDLTTF
+} fontdev_t;
+
+enum FontType {
+	FONT_GOTHIC,
+	FONT_MINCHO,
+};
 extern void ags_setFont(int type, int size);
+extern agsurface_t *ags_drawStringToSurface(const char *str);
 
 /* カーソル関係 */
 extern void ags_setCursorType(int type);

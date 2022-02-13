@@ -35,7 +35,6 @@
 #include "sactcg.h"
 #include "surface.h"
 #include "ngraph.h"
-#include "utfsjis.h"
 
 #include "sactcg_stretch.c"
 #include "sactcg_blend.c"
@@ -202,24 +201,14 @@ int scg_create_blend(int wNumDstCG, int wNumBaseCG, int wX, int wY, int wNumBlen
 // 指定の文字列のCGを作成
 int scg_create_text(int wNumCG, int wSize, int wR, int wG, int wB, int wText) {
 	cginfo_t *i;
-	agsurface_t *glyph;
-	FONT *font;
-	
-	if (0) {
-		char *b = sjis2utf(v_str(wText-1));
-		WARNING("str = '%s'\n", b);
-		free(b);
-	}
 	
 	spcg_assert_no(wNumCG);
 	
 	// 勝手に出ていいのかな？
-	if (v_strlen(wText -1) == 0) return OK;
-	
-	font = nact->ags.font;
-	font->sel_font(FONT_GOTHIC, wSize);
-	
-	glyph = font->get_glyph(v_str(wText -1));
+	if (svar_length(wText) == 0) return OK;
+
+	ags_setFont(FONT_GOTHIC, wSize);
+	agsurface_t *glyph = ags_drawStringToSurface(svar_get(wText));
 	i = malloc(sizeof(cginfo_t));
 	i->type = CG_SET;
 	i->no = wNumCG;
@@ -240,8 +229,6 @@ int scg_create_text(int wNumCG, int wSize, int wR, int wG, int wB, int wText) {
 // 数字文字列のCGを作成
 int scg_create_textnum(int wNumCG, int wSize, int wR, int wG, int wB, int wFigs, int wZeroPadding, int wValue) {
 	cginfo_t *i;
-	agsurface_t *glyph;
-	FONT *font;
 	char s[256], ss[256];
 	
 	spcg_assert_no(wNumCG);
@@ -254,11 +241,10 @@ int scg_create_textnum(int wNumCG, int wSize, int wR, int wG, int wB, int wFigs,
 		sprintf(ss, sss, wFigs);
 	}
 	sprintf(s, ss, wValue);
-	
-	font = nact->ags.font;
-	font->sel_font(FONT_GOTHIC, wSize);
-	glyph = font->get_glyph(s);
-	
+
+	ags_setFont(FONT_GOTHIC, wSize);
+	agsurface_t *glyph = ags_drawStringToSurface(s);
+
 	i = malloc(sizeof(cginfo_t));
 	i->type = CG_SET;
 	i->no = wNumCG;
@@ -320,15 +306,15 @@ int scg_cut(int wNumDstCG, int wNumSrcCG, int wX, int wY, int wWidth, int wHeigh
 	i->refcnt = 0;
 	
 	src = srccg->sf;
-	if (src->has_alpha) {
+	if (src->alpha) {
 		dst = sf_create_surface(wWidth, wHeight, src->depth);
 	} else {
 		dst = sf_create_pixel(wWidth, wHeight, src->depth);
 	}
-	if (src->has_pixel) {
+	if (src->pixel) {
 		gr_copy(dst, 0, 0, src, wX, wY, wWidth, wHeight);
 	}
-	if (src->has_alpha) {
+	if (src->alpha) {
 		gr_copy_alpha_map(dst, 0, 0, src, wX, wY, wWidth, wHeight);
 	}
 	
@@ -361,17 +347,17 @@ int scg_partcopy(int wNumDstCG, int wNumSrcCG, int wX, int wY, int wWidth, int w
 	i->refcnt = 0;
 
 	src = srccg->sf;
-	if (src->has_alpha) {
+	if (src->alpha) {
 		dst = sf_create_surface(src->width, src->height, src->depth);
 		gr_fill_alpha_map(dst, 0, 0, src->width, src->height, 255);
 	} else {
 		dst = sf_create_pixel(src->width, src->height, src->depth);
 	}
 	
-	if (src->has_pixel) {
+	if (src->pixel) {
 		gr_copy(dst, wX, wY, src, wX, wY, wWidth, wHeight);
 	}
-	if (src->has_alpha) {
+	if (src->alpha) {
 		gr_copy_alpha_map(dst, wX, wY, src, wX, wY, wWidth, wHeight);
 	}
 	
@@ -496,7 +482,7 @@ int scg_existalphamap(int wNumCG, int *ret) {
 	if (sact.cg[wNumCG] == NULL) goto errexit;
 	if (sact.cg[wNumCG]->sf == NULL) goto errexit;
 	
-	*ret = sact.cg[wNumCG]->sf->has_alpha ? 1 : 0;
+	*ret = sact.cg[wNumCG]->sf->alpha ? 1 : 0;
 	
  errexit:
 	*ret = 0;

@@ -35,7 +35,7 @@
 #include "utfsjis.h"
 #include "hankaku.h"
 #include "ags.h"
-#include "graphicsdevice.h"
+#include "sdl_core.h"
 #include "ald_manager.h"
 #include "LittleEndian.h"
 #include "gametitle.h"
@@ -367,7 +367,7 @@ void commands2F23() {
 	int y = getCaliValue();
 	char *vFileName = sys_getString(0);
 	
-	char *fname_utf8 = sjis2utf(vFileName);
+	char *fname_utf8 = toUTF8(vFileName);
 	sysVar[0] = cg_load_with_filename(fname_utf8, x, y);
 	free(fname_utf8);
 	
@@ -380,7 +380,7 @@ void commands2F24() {
 	int *var = NULL, _var = 0;
 	int num = 0;
 
-	char *fname_utf8 = sjis2utf(file_name);
+	char *fname_utf8 = toUTF8(file_name);
 	switch(type) {
 	case 0:
 		var = getCaliVariable();
@@ -412,8 +412,8 @@ void commands2F26() {
 	char *title  = sys_getString(0);
 	char *t1, *t2, *t3;
 	
-	t1 = sjis2utf(title);
-	t2 = sjis2utf(v_str(dst_no -1));
+	t1 = toUTF8(title);
+	t2 = toUTF8(svar_get(dst_no));
 	
 	mi_param.title = t1;
 	mi_param.oldstring = t2;
@@ -421,17 +421,15 @@ void commands2F26() {
 	
 	menu_inputstring(&mi_param);
 	if (mi_param.newstring == NULL) {
-		v_strcpy(dst_no -1, NULL);
+		svar_set(dst_no, NULL);
 		free(t1); free(t2);
 		return;
 	}
 	
-	t3 = utf2sjis(mi_param.newstring);
+	t3 = fromUTF8(mi_param.newstring);
 	
-	/* 全角文字以外は不可 */
-	if (!sjis_has_hankaku(t3)) {
-		v_strcpy(dst_no -1, t3);
-	}
+	svar_set(dst_no, t3);
+
 	free(t1);
 	free(t2);
 	free(t3);
@@ -444,7 +442,7 @@ void commands2F27() {
 	char *string = sys_getString(0);
 
 	if (num > 0) {
-	        v_strcpy(num - 1, string);
+		svar_set(num, string);
 	} else {
         	WARNING("MS: num <= 0\n");
 	}
@@ -457,7 +455,7 @@ void commands2F28() {
 	
 	if (nact->game_title_utf8)
 		free(nact->game_title_utf8);
-	nact->game_title_utf8 = sjis2utf(title);
+	nact->game_title_utf8 = toUTF8(title);
 
 	ags_setWindowTitle(title);
 
@@ -478,7 +476,7 @@ void commands2F29() {
 	if (ni_param.title != NULL) {
 		free(ni_param.title);
 	}
-	t = sjis2utf(title);
+	t = toUTF8(title);
 	ni_param.title = t;
 	
 	DEBUG_COMMAND("NT(new) %s:\n", title);
@@ -489,7 +487,7 @@ void commands2F2A() {
 	char *file_name = sys_getString(0);
 	int *var, _var = 0, cnt;
 
-	char *fname_utf8 = sjis2utf(file_name);
+	char *fname_utf8 = toUTF8(file_name);
 	switch(type) {
 	case 0:
 		var = getCaliVariable();
@@ -652,7 +650,7 @@ void commands2F3C() {
 	int ePos = getCaliValue();
 	int *vResult = getCaliVariable();
 	
-	*vResult = v_strGetCharType(eNum - 1, ePos);
+	*vResult = svar_getCharType(eNum, ePos);
 	
 	DEBUG_COMMAND("strGetCharType %d, %d, %d:\n", eNum, ePos, *vResult);
 }
@@ -661,7 +659,7 @@ void commands2F3D() {
 	int eNum = getCaliValue();
 	int *vResult = getCaliVariable();
 	
-	*vResult = v_strWidth(eNum -1);
+	*vResult = svar_width(eNum);
 
 	DEBUG_COMMAND("strGetLengthASCII %d, %d:\n", eNum, *vResult);
 }
@@ -746,7 +744,7 @@ void commands2F44() {
 	int num2 = getCaliValue();
 	char buf[256];
 
-	v_strcpy(num1 - 1, format_number(num2, fig, buf));
+	svar_set(num1, format_number(num2, fig, buf));
 	
 	DEBUG_COMMAND("MHH %d, %d, %d:\n", num1, fig, num2);
 }
@@ -815,7 +813,7 @@ void commands2F4C() {
 	r.x = eSrcX; r.y = eSrcY; r.width = eWidth; r.height = eHeight;
 	p.x = eX, p.y = eY;
 	
-	UpdateArea(&r, &p);
+	sdl_updateArea(&r, &p);
 	
 	DEBUG_COMMAND("grBlt %d, %d, %d, %d, %d, %d:\n",
 		      eX, eY, eSrcX, eSrcY, eWidth, eHeight);
@@ -874,7 +872,7 @@ void commands2F52() {
 	const char *s = CMAKE_SYSTEM_NAME;
 #endif
 
-	v_strcpy(eNum -1, s);
+	svar_set(eNum, s);
 	DEBUG_COMMAND("sysGetOsName %d: %s\n", eNum, s);
 }
 
@@ -924,8 +922,8 @@ void commands2F57() {
 	char *t1, *t2, *t3;
 	INPUTSTRING_PARAM p;
 	
-	t1 = sjis2utf(sTitle);
-	t2 = sjis2utf(v_str(eStrVar -1));
+	t1 = toUTF8(sTitle);
+	t2 = toUTF8(svar_get(eStrVar));
 	p.title = t1;
 	p.oldstring = t2;
 	p.max = eLength;
@@ -934,13 +932,9 @@ void commands2F57() {
 	if (p.newstring == NULL) {
 		*vResult = 65535;
 	} else {
-		t3 = utf2sjis(p.newstring);
-		if (!sjis_has_hankaku(t3)) {
-			v_strcpy(eStrVar -1, t3);
-			*vResult = sjis_count_char(t3);
-		} else {
-			*vResult = 65535;
-		}
+		t3 = fromUTF8(p.newstring);
+		svar_set(eStrVar, t3);
+		*vResult = svar_length(eStrVar);
 		free(t3);
 	}
 	free(t1);
@@ -953,7 +947,7 @@ void commands2F58() {
 	int eNum = getCaliValue();
 	int *vResult = getCaliVariable();
 	
-	*vResult = sjis_has_hankaku(v_str(eNum - 1)) ? 1 : 0;
+	*vResult = sjis_has_hankaku(svar_get(eNum)) ? 1 : 0;
 	
 	DEBUG_COMMAND("strCheckASCII %d, %d:\n", eNum, *vResult);
 }
@@ -962,7 +956,7 @@ void commands2F59() {
 	int eNum = getCaliValue();
 	int *vResult = getCaliVariable();
 	
-	*vResult = sjis_has_zenkaku(v_str(eNum - 1)) ? 1 : 0;
+	*vResult = sjis_has_zenkaku(svar_get(eNum)) ? 1 : 0;
 	
 	DEBUG_COMMAND("strCheckSJIS %d, %d:\n", eNum, *vResult);
 }
@@ -971,7 +965,7 @@ void commands2F5A() {
 	char *sText = sys_getString(0);
 	char *t1;
 	
-	t1 = sjis2utf(sText);
+	t1 = toUTF8(sText);
 	menu_msgbox_open(t1);
 	free(t1);
 	
@@ -982,7 +976,7 @@ void commands2F5B() {
 	int eNum = getCaliValue();
 	char *t1;
 	
-	t1 = sjis2utf(v_str(eNum) - 1);
+	t1 = toUTF8(svar_get(eNum));
 	menu_msgbox_open(t1);
 	free(t1);
 	
@@ -1148,7 +1142,7 @@ void commands2F67() {
 	int i;
 
 	for (i = 0; i < nact->ain.fncnum; i++) {
-		if (0 == strcmp(nact->ain.fnc[i].name, v_str(eStrNum -1))) {
+		if (0 == strcmp(nact->ain.fnc[i].name, svar_get(eStrNum))) {
 			fnctbl[eNum].page  = nact->ain.fnc[i].page;
 			fnctbl[eNum].index = nact->ain.fnc[i].index;
 			break;
@@ -1297,7 +1291,7 @@ void commands2F77() {
 	int eStrNum    = getCaliValue();
 	int eSelectNum = getCaliValue();
 	
-	v_strcpy(eStrNum -1, sel_gettext(eSelectNum));
+	svar_set(eStrNum, sel_gettext(eSelectNum));
 	
 	DEBUG_COMMAND("menuGetText %d,%d:\n", eStrNum, eSelectNum);
 }
@@ -1356,9 +1350,9 @@ void commands2F7F() {
 	int index = sys_getdw();
 	int p1    = sys_getCaliValue();
 	
-	sys_addMsg(v_str(p1 -1));
+	sys_addMsg(svar_get(p1));
 	
-	DEBUG_COMMAND("2F7F %d, %d(%s,%s):\n", index, p1, nact->ain.msg[index], v_str(p1 -1));
+	DEBUG_COMMAND("2F7F %d, %d(%s,%s):\n", index, p1, nact->ain.msg[index], svar_get(p1));
 }
 
 void commands2F80() {
@@ -1398,7 +1392,7 @@ void commands2F82() {
 	DEBUG_COMMAND("dataGetString %d,%d:\n", eStrNum, eNumof);
 	
 	for (i = 0; i < eNumof; i++) {
-		v_strcpy(eStrNum + i -1, p);
+		svar_set(eStrNum + i, p);
 		p += (strlen(p) + 1);
 	}
 

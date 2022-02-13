@@ -42,7 +42,7 @@
 
 /* VSPのパレット展開バンク */
 int cg_vspPB = -1;
-/* cg,pallet 展開フラグ (funciotn flag) */
+/* cg,palette 展開フラグ (funciotn flag) */
 int cg_fflg = 7;
 /* CGをロードした回数を書き込む変数 */
 int *cg_loadCountVar = NULL;
@@ -50,8 +50,8 @@ int *cg_loadCountVar = NULL;
 int cg_alphaLevel = 255;
 
 #define GCMD_EXTRACTCG(c)    ((c) & 0x01)
-#define GCMD_SET_PALLET(c)  ((c) & 0x02)
-#define GCMD_LOAD_PALLET(c) ((c) & 0x04)
+#define GCMD_SET_PALETTE(c)  ((c) & 0x02)
+#define GCMD_LOAD_PALETTE(c) ((c) & 0x04)
 
 /* CG表示位置に関する情報 */
 static CG_WHERETODISP loc_policy = OFFSET_NOMOVE, loc_policy0;
@@ -98,9 +98,9 @@ static CG_TYPE check_cgformat(BYTE *data) {
 }
 
 /*
- * Modify pixel accoding to pallet bank (vsp only)
+ * Modify pixel accoding to palette bank (vsp only)
  *   pic   : pixel to be modifyied.
- *   bank  : pallet bank (use only MSB 4bit)
+ *   bank  : palette bank (use only MSB 4bit)
  *   width : image width
  *   height: image height 
 */
@@ -225,63 +225,43 @@ static cgdata *loader(int no) {
 	
 	/* extract cg */
 	/*  size is only pixel data size */
-	if (GCMD_EXTRACTCG(cg_fflg)) {
-		switch(type) {
-		case ALCG_VSP:
-			cg = vsp_extract(dfile->data);
-			size = cg->width * cg->height;
-			break;
-		case ALCG_PMS8:
-			cg = pms256_extract(dfile->data);
-			size = cg->width * cg->height;
-			break;
-		case ALCG_PMS16:
-			cg = pms64k_extract(dfile->data);
-			size = (cg->width * cg->height) * sizeof(WORD);
-			break;
-		case ALCG_BMP8:
-			cg = bmp256_extract(dfile->data);
-			size = cg->width * cg->height;
-			break;
-		case ALCG_BMP24:
-			cg = bmp16m_extract(dfile->data);
-			size = (cg->width * cg->height) * sizeof(WORD);
-			break;
-		case ALCG_QNT:
-			cg = qnt_extract(dfile->data);
-			size = (cg->width * cg->height) * 3;
-			break;
+	switch(type) {
+	case ALCG_VSP:
+		cg = vsp_extract(dfile->data);
+		size = cg->width * cg->height;
+		break;
+	case ALCG_PMS8:
+		cg = pms256_extract(dfile->data);
+		size = cg->width * cg->height;
+		break;
+	case ALCG_PMS16:
+		cg = pms64k_extract(dfile->data);
+		size = (cg->width * cg->height) * sizeof(WORD);
+		break;
+	case ALCG_BMP8:
+		cg = bmp256_extract(dfile->data);
+		size = cg->width * cg->height;
+		break;
+	case ALCG_BMP24:
+		cg = bmp16m_extract(dfile->data);
+		size = (cg->width * cg->height) * sizeof(WORD);
+		break;
+	case ALCG_QNT:
+		cg = qnt_extract(dfile->data);
+		size = (cg->width * cg->height) * 3;
+		break;
 #ifdef HAVE_JPEG
-		case ALCG_JPEG:
-			cg = jpeg_extract(dfile->data, dfile->size);
-			size = (cg->width * cg->height) * sizeof(WORD);
-			break;
+	case ALCG_JPEG:
+		cg = jpeg_extract(dfile->data, dfile->size);
+		size = (cg->width * cg->height) * sizeof(WORD);
+		break;
 #endif
-		default:
-			break;
-		}
-		/* insert to cache */
-		if (cg)
-			cache_insert(cacheid, no, cg, size, NULL);
+	default:
+		break;
 	}
-	
-	/* load pallet if not extracted */
-	if (GCMD_LOAD_PALLET(cg_fflg) && cg == NULL) {
-		/* XXXX うむ、こいつらどこで解放するんだ */
-		switch(type) {
-		case ALCG_VSP:
-			cg = vsp_getpal(dfile->data);
-			break;
-		case ALCG_PMS8:
-			cg = pms_getpal(dfile->data);
-			break;
-		case ALCG_BMP8:
-			cg = bmp_getpal(dfile->data);
-			break;
-		default:
-			break;
-		}
-	}
+	/* insert to cache */
+	if (cg)
+		cache_insert(cacheid, no, cg, size, NULL);
 	
 	/* ok to free */
 	ald_freedata(dfile);
@@ -335,7 +315,7 @@ void cg_load(int no, int flg) {
 	if (GCMD_EXTRACTCG(cg_fflg) && cg->type == ALCG_VSP) {
 		bank = cg_vspPB == -1 ? cg->vsp_bank : cg_vspPB;
 		set_vspbank(cg->pic, bank << 4, cg->width, cg->height);
-		/* copy pallets 0 -> bank */
+		/* copy palettes 0 -> bank */
 		{
 			int i, i_dst = bank << 4;
 			for (i = 0; i < 16; i++) {
@@ -349,43 +329,39 @@ void cg_load(int no, int flg) {
 		}
 	}
         
-	/* copy pallet to system */
-	if (GCMD_LOAD_PALLET(cg_fflg)) {
+	/* copy palette to system */
+	if (GCMD_LOAD_PALETTE(cg_fflg)) {
 		switch(cg->type) {
 		case ALCG_VSP:
-			ags_setPallets(cg->pal, 0, bank << 4, 16);
+			ags_setPalettes(cg->pal, 0, bank << 4, 16);
 			break;
 		case ALCG_PMS8:
 			if (cg->pms_bank & 1)
-				ags_setPallets(cg->pal, 10, 10,  6);
+				ags_setPalettes(cg->pal, 10, 10,  6);
 			if (cg->pms_bank & (1 << 15))
-				//ags_setPallets(cg->pal, 240, 240, 15);
-				ags_setPallets(cg->pal, 240, 240, 10);
+				//ags_setPalettes(cg->pal, 240, 240, 15);
+				ags_setPalettes(cg->pal, 240, 240, 10);
 			for (i = 1; i < 15; i++) {
 				if (cg->pms_bank & (1 << i)) {
-					ags_setPallets(cg->pal, i * 16, i * 16, 16);
+					ags_setPalettes(cg->pal, i * 16, i * 16, 16);
 				}
 			}
 			break;
 		case ALCG_BMP8:
-			ags_setPallets(cg->pal, 10, 10, 236);
+			ags_setPalettes(cg->pal, 10, 10, 236);
 			break;
 		default:
 			break;
 		}
-		/* pallet load only */
-		if (cg->pic == NULL) {
-			cgdata_free(cg);
-		}
 	}
 	
-	/* refrect pallet change */
-	if (GCMD_SET_PALLET(cg_fflg)) {
+	/* refrect palette change */
+	if (GCMD_SET_PALETTE(cg_fflg)) {
 		switch(cg->type) {
 		case ALCG_VSP:
 		case ALCG_PMS8:
 		case ALCG_BMP8:
-			ags_setPalletToSystem(0, 256);
+			ags_setPaletteToSystem(0, 256);
 			break;
 		default:
 			break;
@@ -505,15 +481,15 @@ int cg_load_with_filename(char *fname_utf8, int x, int y) {
 		return status;
 	}
 	
-	/* load pallet if not extracted */
-	if (GCMD_LOAD_PALLET(cg_fflg)) {
+	/* load palette if not extracted */
+	if (GCMD_LOAD_PALETTE(cg_fflg)) {
 		if (cg->type == ALCG_BMP8)
-			ags_setPallets(cg->pal, 10, 10, 236);
+			ags_setPalettes(cg->pal, 10, 10, 236);
 	}
 	
-	if (GCMD_SET_PALLET(cg_fflg)) {
+	if (GCMD_SET_PALETTE(cg_fflg)) {
 		if (cg->type == ALCG_BMP8)
-			ags_setPalletToSystem(0, 256);
+			ags_setPaletteToSystem(0, 256);
 	}
 
 	/* draw cg */
@@ -549,10 +525,6 @@ void cg_get_info(int no, MyRectangle *info) {
 		info->width  = cg->width;
 		info->height = cg->height;
 	}
-}
-
-cgdata *cg_loadonly(int no) {
-	return loader(no);
 }
 
 void cg_clear_display_loc() {

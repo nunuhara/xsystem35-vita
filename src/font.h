@@ -30,10 +30,6 @@
 /* font の種類 */
 #define FONTTYPEMAX 2
 
-/* fontの名前 */
-#define FONT_GOTHIC (0)
-#define FONT_MINCHO (1)
-
 struct agsurface;
 
 struct _FONT {
@@ -45,9 +41,9 @@ struct _FONT {
 	
 	void (*sel_font)(int type, int size);
 	
-	struct agsurface *(*get_glyph)(const unsigned char *str);
+	struct agsurface *(*get_glyph)(const char *str_utf8);
 	
-	int (*draw_glyph)(int x, int y, const unsigned char *str, int col);
+	int (*draw_glyph)(int x, int y, const char *str_utf8, int col);
 	
 	boolean (*self_drawable)();
 };
@@ -63,20 +59,6 @@ extern FONT *font_ft2_new();
 #ifdef ENABLE_SDLTTF
 extern FONT *font_sdlttf_new();
 #endif
-
-#ifdef ENABLE_X11FONT
-extern FONT *font_x11_new();
-#endif
-
-/* デフォルトのフォント名 */
-#define FONT_DEFAULTNAME_X "-*-*-medium-r-normal--%d-*-*-*-c-*-jisx0208.1983-0,-*-*-medium-r-normal--%d-*-*-*-c-*-jisx0201.1976-0,*"
-
-// Font devices
-typedef enum {
-	FONT_X11,
-	FONT_FT2,
-	FONT_SDLTTF
-} fontdev_t;
 
 #ifdef __EMSCRIPTEN__
 int load_mincho_font(void);

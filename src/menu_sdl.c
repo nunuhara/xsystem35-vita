@@ -1,5 +1,5 @@
 /*
- * menu_null.c  popup menu for null
+ * menu_sdl.c  popup menu for SDL
  *
  * Copyright (C) 2000- Masaki Chikama (Wren) <masaki-c@is.aist-nara.ac.jp>
  *
@@ -18,21 +18,44 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
 */
-/* $Id: menu_null.c,v 1.2 2003/01/25 01:34:50 chikama Exp $ */
 
 #include "config.h"
 
 #include <stdio.h>
 
 #include "portab.h"
+#include "system.h"
+#include "nact.h"
 #include "menu.h"
+#include "sdl_core.h"
+#include "sdl_private.h"
 
 void menu_open(void) {
 	return;
 }
 
 void menu_quitmenu_open(void) {
-	return;
+	const SDL_MessageBoxButtonData buttons[] = {
+		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Quit" },
+		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Cancel" },
+	};
+	const SDL_MessageBoxData messagebox_data = {
+		.flags = SDL_MESSAGEBOX_INFORMATION,
+		.window = sdl_window,
+		.title = "Confirm",
+		.message = "Quit xsystem35?",
+		.numbuttons = SDL_arraysize(buttons),
+		.buttons = buttons,
+	};
+	int buttonid = 0;
+	if (SDL_ShowMessageBox(&messagebox_data, &buttonid) < 0) {
+		WARNING("error displaying message box");
+		return;
+	}
+	if (buttonid == 1) {
+		nact->is_quit = TRUE;
+		nact->wait_vsync = TRUE;
+	}
 }
 
 boolean menu_inputstring(INPUTSTRING_PARAM *p) {
@@ -41,8 +64,7 @@ boolean menu_inputstring(INPUTSTRING_PARAM *p) {
 }
 
 boolean menu_inputstring2(INPUTSTRING_PARAM *p) {
-	p->newstring = p->oldstring;
-	return TRUE;
+	return sdl_inputString(p);
 }
 
 boolean menu_inputnumber(INPUTNUM_PARAM *p) {
@@ -51,14 +73,10 @@ boolean menu_inputnumber(INPUTNUM_PARAM *p) {
 }
 
 void menu_msgbox_open(char *msg) {
-	return;
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, nact->game_title_utf8, msg, sdl_window);
 }
 
 void menu_init(void) {
-	return;
-}
-
-void menu_widget_reinit(boolean reset_colortmap) {
 	return;
 }
 

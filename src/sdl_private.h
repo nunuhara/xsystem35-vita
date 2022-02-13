@@ -29,7 +29,8 @@
 
 #include "portab.h"
 #include "ags.h"
-#include "font.h"
+
+struct _FONT;
 
 struct sdl_private_data {
 	SDL_Window *window;
@@ -39,7 +40,7 @@ struct sdl_private_data {
 
 	SDL_Surface     *dib; /* offscreen surface */
 	
-	SDL_Color       col[256]; /* color pallet */
+	SDL_Color       col[256]; /* color palette */
 	
 	unsigned long       white; /* white pixel */
 	
@@ -47,7 +48,7 @@ struct sdl_private_data {
 	
 	SDL_Rect       view;
 	
-	FONT *font;
+	struct _FONT *font;
 
 	boolean dirty;
 
@@ -62,6 +63,8 @@ struct sdl_private_data {
 	int renderoffset_y;
 	float renderscale;
 #endif
+
+	boolean (*custom_event_handler)(const SDL_Event *);
 };
 
 extern void sdl_cursor_init(void);
@@ -96,6 +99,7 @@ extern struct sdl_private_data *sdl_videodev;
 #define renderoffset_y (sdl_videodev->renderoffset_y)
 #define renderscale (sdl_videodev->renderscale)
 #endif
+#define sdl_custom_event_handler (sdl_videodev->custom_event_handler)
 
 #define setRect(r,xx,yy,ww,hh) (r).x=(xx),(r).y=(yy),(r).w=(ww),(r).h=(hh)
 #define setOffset(s,x,y) (s->pixels) + (x) * (s->format->BytesPerPixel) + (y) * s->pitch

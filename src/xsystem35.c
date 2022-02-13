@@ -41,9 +41,7 @@
 #  include <gtk/gtk.h>
 #endif
 
-#ifdef ENABLE_SDL
-#  include <SDL.h>
-#endif
+#include <SDL.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -65,9 +63,11 @@
 #include "randMT.h"
 #include "counter.h"
 #include "ags.h"
-#include "graphicsdevice.h"
+#include "font.h"
+#include "sdl_core.h"
 #include "menu.h"
 #include "music.h"
+#include "cdrom.h"
 #include "savedata.h"
 #include "scenario.h"
 #include "variable.h"
@@ -95,16 +95,13 @@ static int debuglv = DEBUGLEVEL;
 static int audio_buffer_size = 0;
 
 /* font name from rcfile */
-static char *fontname[FONTTYPEMAX];
 static char *fontname_tt[FONTTYPEMAX] = {DEFAULT_GOTHIC_TTF, DEFAULT_MINCHO_TTF};
 static char fontface[FONTTYPEMAX];
 
 #ifdef ENABLE_SDLTTF
 #define DEFAULT_FONT_DEVICE FONT_SDLTTF
-#elif defined(ENABLE_SDL)
-#define DEFAULT_FONT_DEVICE FONT_FT2
 #else
-#define DEFAULT_FONT_DEVICE FONT_X11
+#define DEFAULT_FONT_DEVICE FONT_FT2
 #endif
 
 static fontdev_t fontdev = DEFAULT_FONT_DEVICE;
@@ -126,7 +123,6 @@ static void sys35_usage(boolean verbose) {
 	puts("Usage: xsystem35 [OPTIONS]\n");
 	puts("OPTIONS");
 	puts(" -gamefile file : set game resource file to 'file'");
-	puts(" -no-shm        : don't use MIT-SHM (use in another display)");
 	puts(" -devcd device  : set cdrom device name to 'device'");
 	puts(" -devmidi device: set midi device name to 'device'");
 	
@@ -150,26 +146,17 @@ static void sys35_usage(boolean verbose) {
 	puts(" -devfont sdl   : SDL_ttf");
 #endif
 #ifdef ENABLE_FT2
-	puts(" -devfont ttf   : FreeType");
-#endif
-#ifdef ENABLE_X11FONT
-	puts(" -devfont x11   : x11");
+	puts(" -devfont ft2   : FreeType");
 #endif
 
 #ifdef ENABLE_SDLTTF
 	puts("                : default is sdl");
-#elif defined(ENABLE_SDL)
-	puts("                : default is ft2");
 #else
-	puts("                : default is x11");
+	puts("                : default is ft2");
 #endif
 
-#if defined(ENABLE_SDLTTF) || defined(ENABLE_FT2)
 	puts(" -ttfont_mincho: set TrueType font for mincho");
 	puts(" -ttfont_gothic: set TrueType font for mincho");
-#endif
-	puts(" -font_mincho  : set X11(gtk) font for mincho");
-	puts(" -font_gothic  : set X11(gtk) font for mincho");
 	
 #ifdef DEBUG
 	puts(" -debuglv #     : debug level");
@@ -246,7 +233,7 @@ void sys_exit(int code) {
 	sys35_remove();
 #ifdef __EMSCRIPTEN__
 	EM_ASM( xsystem35.shell.quit(); );
-	Sleep(1000000000);
+	sdl_sleep(1000000000);
 #else
 #ifdef VITA
 	sceKernelExitProcess(code);
@@ -266,11 +253,6 @@ static int check_fontdev(char *devname) {
 		return FONT_FT2;
 	}
 #endif
-#ifdef ENABLE_X11FONT
-	if (0 == strcmp(devname, "x11")) {
-		return FONT_X11;
-	}
-#endif
 	return DEFAULT_FONT_DEVICE;
 }
 
@@ -288,23 +270,8 @@ static void sys35_init() {
 	ags_init();
 
 	for (i = 0; i < FONTTYPEMAX; i++) {
-		switch(fontdev) {
-		case FONT_FT2:
-		case FONT_SDLTTF:
-			nact->ags.font->name[i] = fontname_tt[i];
-			nact->ags.font->face[i] = fontface[i];
-			break;
-			
-		case FONT_X11:
-			if (fontname[i] == NULL) {
-				nact->ags.font->name[i] = strdup(FONT_DEFAULTNAME_X);
-			} else {
-				nact->ags.font->name[i] = fontname[i];
-			}
-			break;
-		default:
-			break;
-		}
+		nact->ags.font->name[i] = fontname_tt[i];
+		nact->ags.font->face[i] = fontface[i];
 	}
 	
 	ags_fullscreen(fs_on);
@@ -377,8 +344,6 @@ static void sys35_ParseOption(int *argc, char **argv) {
 			}
 			fclose(fp);
 			gameResourceFile = argv[i + 1];
-		} else if (0 == strcmp(argv[i], "-no-shm")) {
-			SetNoShmMode();
 		} else if (0 == strcmp(argv[i], "-devcd")) {
 			if (argv[i + 1] != NULL) {
 				cd_set_devicename(argv[i + 1]);
@@ -404,14 +369,6 @@ static void sys35_ParseOption(int *argc, char **argv) {
 		} else if (0 == strcmp(argv[i], "-devfont")) {
 			if (argv[i + 1] != NULL) {
 				fontdev = check_fontdev(argv[i + 1]);
-			}
-		} else if (0 == strcmp(argv[i], "-font_gothic")) {
-			if (argv[i + 1] != NULL) {
-				fontname[FONT_GOTHIC] = argv[i + 1];
-			}
-		} else if (0 == strcmp(argv[i], "-font_mincho")) {
-			if (argv[i + 1] != NULL) {
-				fontname[FONT_MINCHO] = argv[i + 1];
 			}
 		} else if (0 == strcmp(argv[i], "-ttfont_gothic")) {
 			if (argv[i + 1] != NULL) {
@@ -441,16 +398,6 @@ static void check_profile() {
 	param = get_profile("font_device");
 	if (param) {
 		fontdev = check_fontdev(param);
-	}
-	/* ゴシックフォントの設定 */
-	param = get_profile("font_gothic");
-	if (param) {
-		fontname[FONT_GOTHIC] = param;
-	}
-	/* 明朝フォントの設定 */
-	param = get_profile("font_mincho");
-	if (param) {
-		fontname[FONT_MINCHO] = param;
 	}
 	/* ゴシックフォント(TT)の設定 */
 	param = get_profile("ttfont_gothic");
@@ -508,13 +455,6 @@ static void check_profile() {
 			subdev = (*(param + 1) - '0') << 8;
 		}
 		midi_set_output_device(*param | subdev);
-	}
-	/* no-shm flag */
-	param = get_profile("no_shm");
-	if (param) {
-		if (0 == strcmp(param, "Yes")) {
-			SetNoShmMode();
-		}
 	}
 	/* disable image cursor */
 	param = get_profile("no_imagecursor");
@@ -708,7 +648,7 @@ int main(int argc, char **argv) {
 	
 	nact_main();
 #ifdef __EMSCRIPTEN__
-	Sleep(1000000000);
+	sdl_sleep(1000000000);
 #endif
 	sys35_remove();
 	

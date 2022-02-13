@@ -1,73 +1,171 @@
-static int sdl_keytable[SDL_NUM_SCANCODES] = {
-	0, KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, 
-	KEY_A, KEY_B, KEY_C, KEY_D, 
-	KEY_E, KEY_F, KEY_G, KEY_H, 
-	KEY_I, KEY_J, KEY_K, KEY_L, 
-	KEY_M, KEY_N, KEY_O, KEY_P, 
-	KEY_Q, KEY_R, KEY_S, KEY_T, 
-	KEY_U, KEY_V, KEY_W, KEY_X, 
-	KEY_Y, KEY_Z, KEY_1, KEY_2, 
-	KEY_3, KEY_4, KEY_5, KEY_6, 
-	KEY_7, KEY_8, KEY_9, KEY_0, 
-	KEY_RETURN, KEY_ESCAPE, KEY_BACKSPACE, KEY_TAB, 
-	KEY_SPACE, 45, 46, 47, 
-	48, 49, 50, 51, 
-	52, 53, 54, 55, 
-	56, KEY_CAPSLOCK, KEY_F1, KEY_F2, 
-	KEY_F3, KEY_F4, KEY_F5, KEY_F6, 
-	KEY_F7, KEY_F8, KEY_F9, KEY_F10, 
-	KEY_F11, KEY_F12, KEY_PRINTSCREEN, 71, 
-	KEY_PAUSE, KEY_INSERT, KEY_HOME, KEY_PAGEUP, 
-	KEY_DELETE, KEY_END, KEY_PAGEDOWN, KEY_RIGHT, 
-	KEY_LEFT, KEY_DOWN, KEY_UP, 83, 
-	KEY_PAD_DIVIDE, KEY_PAD_MULTIPLY, KEY_PAD_MINUS, KEY_PAD_PLUS, 
-	KEY_PAD_ENTER, KEY_PAD_1, KEY_PAD_2, KEY_PAD_3, 
-	KEY_PAD_4, KEY_PAD_5, KEY_PAD_6, KEY_PAD_7, 
-	KEY_PAD_8, KEY_PAD_9, KEY_PAD_0, KEY_PAD_PERIOD, 
-	0 /* SDL_NONUSBACKSLASH */, 0 /* SDL_APPLICATION */, 0 /* SDL_POWER */, KEY_PAD_EQUALS, 
-	KEY_F13, KEY_F14, KEY_F15, KEY_F16, 
-	KEY_F17, KEY_F18, KEY_F19, KEY_F20, 
-	KEY_F21, KEY_F22, KEY_F23, KEY_F24, 
-	KEY_EXECUTE, KEY_HELP, 0 /* SDL_MENU */, KEY_SELECT, 
-	0 /* SDL_STOP */, 0 /* SDL_AGAIN */, 0 /* SDL_UNDO */, 0 /* SDL_CUT */, 
-	0 /* SDL_COPY */, 0 /* SDL_PASTE */, 0 /* SDL_FIND */, 0 /* SDL_MUTE */, 
-	0 /* SDL_VOLUMEUP */, 0 /* SDL_VOLUMEDOWN */, 0 /* SDL_LOCKINGCAPSLOCK */, 0 /* SDL_LOCKINGNUMLOCK */, 
-	0 /* SDL_LOCKINGSCROLLLOCK */, 0 /* SDL_PAD_COMMA */, 0 /* SDL_PAD_EQUALSAS400 */, 0 /* SDL_INTERNATIONAL1 */, 
-	0 /* SDL_INTERNATIONAL2 */, 0 /* SDL_INTERNATIONAL3 */, 0 /* SDL_INTERNATIONAL4 */, 0 /* SDL_INTERNATIONAL5 */, 
-	0 /* SDL_INTERNATIONAL6 */, 0 /* SDL_INTERNATIONAL7 */, 0 /* SDL_INTERNATIONAL8 */, 0 /* SDL_INTERNATIONAL9 */, 
-	0 /* SDL_LANG1 */, 0 /* SDL_LANG2 */, 0 /* SDL_LANG3 */, 0 /* SDL_LANG4 */, 
-	0 /* SDL_LANG5 */, 0 /* SDL_LANG6 */, 0 /* SDL_LANG7 */, 0 /* SDL_LANG8 */, 
-	0 /* SDL_LANG9 */, 0 /* SDL_ALTERASE */, 0 /* SDL_SYSREQ */, 0 /* SDL_CANCEL */, 
-	KEY_CLEAR, 0 /* SDL_PRIOR */, 0 /* SDL_RETURN2 */, 0 /* SDL_SEPARATOR */, 
-	0 /* SDL_OUT */, 0 /* SDL_OPER */, 0 /* SDL_CLEARAGAIN */, 0 /* SDL_CRSEL */, 
-	0 /* SDL_EXSEL */, KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, 
-	KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, 
-	KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, 
-	0 /* SDL_PAD_00 */, 0 /* SDL_PAD_000 */, 0 /* SDL_THOUSANDSSEPARATOR */, 0 /* SDL_DECIMALSEPARATOR */, 
-	0 /* SDL_CURRENCYUNIT */, 0 /* SDL_CURRENCYSUBUNIT */, 0 /* SDL_PAD_LEFTPAREN */, 0 /* SDL_PAD_RIGHTPAREN */, 
-	0 /* SDL_PAD_LEFTBRACE */, 0 /* SDL_PAD_RIGHTBRACE */, 0 /* SDL_PAD_TAB */, 0 /* SDL_PAD_BACKSPACE */, 
-	0 /* SDL_PAD_A */, 0 /* SDL_PAD_B */, 0 /* SDL_PAD_C */, 0 /* SDL_PAD_D */, 
-	0 /* SDL_PAD_E */, 0 /* SDL_PAD_F */, 0 /* SDL_PAD_XOR */, 0 /* SDL_PAD_POWER */, 
-	0 /* SDL_PAD_PERCENT */, 0 /* SDL_PAD_LESS */, 0 /* SDL_PAD_GREATER */, 0 /* SDL_PAD_AMPERSAND */, 
-	0 /* SDL_PAD_DBLAMPERSAND */, 0 /* SDL_PAD_VERTICALBAR */, 0 /* SDL_PAD_DBLVERTICALBAR */, 0 /* SDL_PAD_COLON */, 
-	0 /* SDL_PAD_HASH */, 0 /* SDL_PAD_SPACE */, 0 /* SDL_PAD_AT */, 0 /* SDL_PAD_EXCLAM */, 
-	0 /* SDL_PAD_MEMSTORE */, 0 /* SDL_PAD_MEMRECALL */, 0 /* SDL_PAD_MEMCLEAR */, 0 /* SDL_PAD_MEMADD */, 
-	0 /* SDL_PAD_MEMSUBTRACT */, 0 /* SDL_PAD_MEMMULTIPLY */, 0 /* SDL_PAD_MEMDIVIDE */, 0 /* SDL_PAD_PLUSMINUS */, 
-	0 /* SDL_PAD_CLEAR */, 0 /* SDL_PAD_CLEARENTRY */, 0 /* SDL_PAD_BINARY */, 0 /* SDL_PAD_OCTAL */, 
-	0 /* SDL_PAD_DECIMAL */, 0 /* SDL_PAD_HEXADECIMAL */, KEY_UNDEFINED, KEY_UNDEFINED, 
-	KEY_RCTRL, KEY_RSHIFT, KEY_RALT, 0 /* SDL_LGUI */, 
-	KEY_RCTRL, KEY_RSHIFT, KEY_RALT, 0 /* SDL_RGUI */, 
-	KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, 
-	KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, 
-	KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, 
-	KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, 
-	KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, 
-	KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, KEY_UNDEFINED, 
-	KEY_UNDEFINED, 0 /* SDL_MODE */, 0 /* SDL_AUDIONEXT */, 0 /* SDL_AUDIOPREV */, 
-	0 /* SDL_AUDIOSTOP */, 0 /* SDL_AUDIOPLAY */, 0 /* SDL_AUDIOMUTE */, 0 /* SDL_MEDIASELECT */, 
-	0 /* SDL_WWW */, 0 /* SDL_MAIL */, 0 /* SDL_CALCULATOR */, 0 /* SDL_COMPUTER */, 
-	0 /* SDL_AC_SEARCH */, 0 /* SDL_AC_HOME */, 0 /* SDL_AC_BACK */, 0 /* SDL_AC_FORWARD */, 
-	0 /* SDL_AC_STOP */, 0 /* SDL_AC_REFRESH */, 0 /* SDL_AC_BOOKMARKS */, 0 /* SDL_BRIGHTNESSDOWN */, 
-	0 /* SDL_BRIGHTNESSUP */, 0 /* SDL_DISPLAYSWITCH */, 0 /* SDL_KBDILLUMTOGGLE */, 0 /* SDL_KBDILLUMDOWN */, 
-	0 /* SDL_KBDILLUMUP */, 0 /* SDL_EJECT */, 0 /* SDL_SLEEP */, 0 /* SDL_APP1 */, 
-	0 /* SDL_APP2 */, };
+/*
+ * Copyright (C) 2020 <KichikuouChrome@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+*/
+#include "config.h"
+
+#include <string.h>
+#include <SDL.h>
+
+#include "sdl_core.h"
+#include "sdl_private.h"
+#include "menu.h"
+#include "nact.h"
+
+#define XMARGIN 3
+#define YMARGIN 2
+
+struct EditorState {
+	INPUTSTRING_PARAM *params;
+	SDL_Rect rect;
+	char *text;
+	char composingText[SDL_TEXTEDITINGEVENT_TEXT_SIZE];
+	int cursor;
+	boolean done;
+};
+static struct EditorState *input;
+
+static void redraw() {
+	const int bgcolor = nact->msg.WinBackgroundColor;
+	const int fgcolor = nact->msg.MsgFontColor;
+
+	ags_fillRectangle(input->rect.x, input->rect.y, input->rect.w, input->rect.h, bgcolor);
+
+	SDL_Rect r = {
+		.x = input->rect.x + XMARGIN,
+		.y = input->rect.y + YMARGIN,
+		.w = input->rect.w - XMARGIN * 2,
+		.h = input->rect.h - YMARGIN * 2,
+	};
+
+	if (*input->text) {
+		int w = sdl_drawString(r.x, r.y, input->text, fgcolor);
+		r.x += w;
+		r.w -= w;
+	}
+
+	if (*input->composingText) {
+		int w = sdl_drawString(r.x, r.y, input->composingText, fgcolor);
+		ags_fillRectangle(r.x, r.y + r.h, w, 2, fgcolor);  // underline
+	}
+
+	// FIXME: This doesn't work with propotional fonts!
+	int cursor_x = r.x + r.h * input->cursor;
+	ags_fillRectangle(cursor_x, r.y, 2, r.h, fgcolor);  // cursor
+
+	// Dib geometry -> window geometry
+	r.x -= nact->sys_view_area.x;
+	r.y -= nact->sys_view_area.y;
+	SDL_SetTextInputRect(&r);
+
+	ags_updateArea(input->rect.x, input->rect.y, input->rect.w, input->rect.h);
+}
+
+static boolean handle_event(const SDL_Event *e) {
+	switch (e->type) {
+	case SDL_KEYDOWN:
+		if (*input->composingText)
+			break;  // Let the IME handle this event.
+		switch (e->key.keysym.sym) {
+		case SDLK_RETURN:
+			input->params->newstring = input->text;
+			input->done = TRUE;
+			return TRUE;
+		case SDLK_ESCAPE:
+			input->params->newstring = NULL;
+			input->done = TRUE;
+			return TRUE;
+		case SDLK_BACKSPACE:
+			{
+				char *p = input->text + strlen(input->text) - 1;
+				while (p >= input->text && UTF8_TRAIL_BYTE(*p))
+					p--;
+				if (p >= input->text)
+					*p = '\0';
+				redraw();
+			}
+			return TRUE;
+		}
+		break;
+
+	case SDL_TEXTINPUT:
+		{
+			int chars = input->params->max;
+			for (const char *p = input->text; *p; p = advance_char(p, UTF8))
+				chars--;
+			const char *end = e->text.text;
+			while (chars > 0 && *end) {
+				end = advance_char(end, UTF8);
+				chars--;
+			}
+			strncat(input->text, e->text.text, end - e->text.text);
+
+			input->composingText[0] = '\0';
+			input->cursor = 0;
+			redraw();
+		}
+		return TRUE;
+
+	case SDL_TEXTEDITING:
+		strncpy(input->composingText, e->edit.text, SDL_TEXTEDITINGEVENT_TEXT_SIZE);
+		input->cursor = e->edit.start;
+		redraw();
+		return TRUE;
+	}
+	return FALSE;
+}
+
+boolean sdl_inputString(INPUTSTRING_PARAM *p) {
+	static char *buf;
+	free(buf);
+	buf = malloc(p->max * MAX_UTF8_BYTES_PAR_CHAR + 1);
+
+	struct EditorState s = {
+		.params = p,
+		.rect = {
+			.x = p->x + nact->sys_view_area.x,  // window geometry -> dib geometry
+			.y = p->y + nact->sys_view_area.y,
+			.w = p->h * p->max + XMARGIN * 2,
+			.h = p->h + YMARGIN * 2
+		},
+		.text = buf,
+	};
+	strcpy(s.text, p->oldstring);
+	input = &s;
+
+	SDL_StartTextInput();
+
+	void *saved_region = ags_saveRegion(s.rect.x, s.rect.y, s.rect.w, s.rect.h);
+	ags_setFont(FONT_GOTHIC, p->h);
+	redraw();
+
+	sdl_custom_event_handler = handle_event;
+	while (!input->done) {
+		sdl_getKeyInfo();  // message pump
+		nact->callback();
+		sdl_wait_vsync();
+	}
+	SDL_StopTextInput();
+	sdl_custom_event_handler = NULL;
+
+	ags_restoreRegion(saved_region, s.rect.x, s.rect.y);
+	ags_updateArea(s.rect.x, s.rect.y, s.rect.w, s.rect.h);
+
+	input = NULL;
+
+	return TRUE;
+}

@@ -24,7 +24,6 @@ target_sources(xsystem35 PRIVATE
   ${SRC_AUDIO}
   ${SRC_CDROM}
   ${SRC_MIDI}
-  ${SRC_GRAPHDEV}
   ${SRC_FONT}
   ${SRC_MENU}
   ${SRC_JOYSTICK})
@@ -35,12 +34,19 @@ target_sources(xsystem35 PRIVATE
   cmdk.c cmdl.c cmdm.c cmdn.c cmdo.c cmdp.c cmdq.c cmds.c cmdt.c
   cmdu.c cmdv.c cmdw.c cmdy.c cmdz.c cmd2F.c cmd2F60.c)
 
+# Graphics
+
+target_sources(xsystem35 PRIVATE
+  sdl_video.c sdl_draw.c sdl_event.c sdl_image.c sdl_cursor.c image.c)
+
 # CG
 target_sources(xsystem35 PRIVATE
   pms.c vsp.c bmp.c qnt.c)
 if (HAVE_JPEG)
   target_sources(xsystem35 PRIVATE jpeg.c)
-  target_link_libraries(xsystem35 PRIVATE JPEG::JPEG)
+  if (NOT EMSCRIPTEN)
+    target_link_libraries(xsystem35 PRIVATE JPEG::JPEG)
+  endif()
 endif()
 
 # Music
@@ -70,7 +76,11 @@ endif()
 
 if (EMSCRIPTEN)
 
-  set(LIBS "SHELL:-s USE_ZLIB=1 -s USE_FREETYPE=1 -s USE_SDL=2")
+  set(LIBS
+    "SHELL:-s USE_ZLIB=1"
+    "SHELL:-s USE_LIBJPEG=1"
+    "SHELL:-s USE_FREETYPE=1"
+    "SHELL:-s USE_SDL=2")
   target_compile_options(xsystem35 PRIVATE ${LIBS})
   target_link_options(xsystem35 PRIVATE ${LIBS})
   target_link_libraries(xsystem35 PRIVATE idbfs.js)
@@ -85,7 +95,7 @@ if (EMSCRIPTEN)
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     "SHELL:-s NO_EXIT_RUNTIME=1"
     "SHELL:-s EXPORTED_FUNCTIONS=\"['_main','_ags_setAntialiasedStringMode', '_ald_getdata', '_ald_freedata']\""
-    "SHELL:-s EXTRA_EXPORTED_RUNTIME_METHODS=\"['getValue','getMemory','addRunDependency','removeRunDependency']\"")
+    "SHELL:-s EXTRA_EXPORTED_RUNTIME_METHODS=\"['getValue','addRunDependency','removeRunDependency']\"")
 
 elseif (ANDROID)
   target_link_libraries(xsystem35 PRIVATE SDL2 SDL2_ttf SDL2_mixer ${ndk_zlib} ${ndk_log})
@@ -126,21 +136,12 @@ elseif (VITA)
 	)
 else()  # non-emscripten, non-android
   target_link_libraries(xsystem35 PRIVATE m ZLIB::ZLIB)
-  if (X11_FOUND)
-    target_include_directories(xsystem35 PRIVATE ${X11_INCLUDE_DIR})
-    target_link_libraries(xsystem35 PRIVATE ${X11_LIBRARIES})
-    if (X11_xf86vmode_FOUND)
-      target_link_libraries(xsystem35 PRIVATE ${X11_Xxf86vm_LIB})
-    endif()
-  endif()
+  target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2)
   if (GTK2_FOUND)
     target_link_libraries(xsystem35 PRIVATE GTK2::gtk)
   endif()
   if (FREETYPE_FOUND)
     target_link_libraries(xsystem35 PRIVATE Freetype::Freetype)
-  endif()
-  if (ENABLE_SDL)
-    target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2)
   endif()
   if (SDL2MIXER_FOUND)
     target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2MIXER)
@@ -163,8 +164,8 @@ else()  # non-emscripten, non-android
 endif()
 
 # FIXME: set up dependency for xsystem35 on this
-if (ENABLE_SDL AND NOT EMSCRIPTEN AND NOT ANDROID)
-  add_custom_target(sdl_input.c
-    COMMAND perl xsyskey.pl ${SDL2_INCLUDE_DIRS} > sdl_input.c
+if (NOT EMSCRIPTEN AND NOT ANDROID)
+  add_custom_target(sdl_keytable.h
+    COMMAND perl ../tools/xsyskey.pl ${SDL2_INCLUDE_DIRS} > sdl_keytable.h
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()

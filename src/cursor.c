@@ -29,7 +29,7 @@
 #include "cursor.h"
 #include "LittleEndian.h"
 #include "ald_manager.h"
-#include "graphicsdevice.h"
+#include "sdl_core.h"
 
 static CursorHeader    cursorHeader;
 static TCursorDirEntry cursordirentry;
@@ -228,9 +228,10 @@ static int read_bitmapinfo(BYTE* data) {
 
 static int read_rgbquad(BYTE* data) {
 	int j;
-	int colors=2;
+	const int colors=2;
 	BYTE* p = data;
 	
+	free(cursorImage.icColors);
 	cursorImage.icColors = malloc(sizeof(TRGBQuad) * colors);
 	
 	if (cursorImage.icColors == NULL) {  /* shouldn't happen */
@@ -292,7 +293,7 @@ static boolean cursor_load_mono(BYTE *d, int no) {
 	pos += p1;
 	
 	/* read pixedl data */
-	if (CursorNew(d + pos, no, &cursorImage, &cursordirentry) == FALSE) {
+	if (sdl_cursorNew(d + pos, no, &cursorImage, &cursordirentry) == FALSE) {
 		WARNING("unable to read pixel data\n");
 		return FALSE;
 	}

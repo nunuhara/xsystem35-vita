@@ -38,7 +38,7 @@
 #include "menu.h"
 #include "input.h"
 #include "joystick.h"
-#include "sdl_input.c"
+#include "sdl_keytable.h"
 #include "texthook.h"
 
 static void sdl_getEvent(void);
@@ -138,13 +138,15 @@ static void sdl_getEvent(void) {
 
 	while (SDL_PollEvent(&e)) {
 		had_input = true;
+
+		if (sdl_custom_event_handler && sdl_custom_event_handler(&e))
+			continue;
+
 		switch (e.type) {
-#ifndef __EMSCRIPTEN__
 		case SDL_QUIT:
-			nact->is_quit = TRUE;
-			nact->wait_vsync = TRUE;
+			menu_quitmenu_open();
 			break;
-#endif
+
 		case SDL_WINDOWEVENT:
 			switch (e.window.event) {
 			case SDL_WINDOWEVENT_ENTER:
