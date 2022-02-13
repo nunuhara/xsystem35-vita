@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 <KichikuouChrome@gmail.com>
+ * Copyright (C) 2021 kichikuou <KichikuouChrome@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,25 +17,29 @@
  *
  */
 
-#ifndef __MSGSKIP_H__
-#define __MSGSKIP_H__
+#ifndef __MSGQUEUE_H__
+#define __MSGQUEUE_H__
 
-#include "portab.h"
+#include <stdbool.h>
+#include <SDL_mutex.h>
 
-#define MSGSKIP_SKIP_UNSEEN		1
-#define MSGSKIP_STOP_ON_UNSEEN	2
-#define MSGSKIP_STOP_ON_MENU	4
-#define MSGSKIP_STOP_ON_CLICK	8
+struct msgq_elem;
 
-extern void msgskip_init(const char *msgskip_file);
-extern boolean msgskip_isSkipping(void);
-extern boolean msgskip_isActivated(void);
-extern void msgskip_enableMenu(boolean enable);
-extern void msgskip_activate(boolean activate);
-extern void msgskip_onMessage(void);
-extern void msgskip_onAinMessage(int msgid);
-extern unsigned msgskip_getFlags();
-extern void msgskip_setFlags(unsigned flags, unsigned mask);
-extern void msgskip_pause(boolean pause);
+struct msgq {
+	SDL_mutex *mutex;
+	SDL_cond *cond_nonempty;
+	struct msgq_elem *head;
+	struct msgq_elem *last;
+};
 
-#endif // __MSGSKIP_H__
+static inline bool msgq_isempty(struct msgq *q) {
+	return !q->head;
+}
+
+struct msgq *msgq_new(void);
+void msgq_free(struct msgq *q);
+void msgq_enqueue(struct msgq *q, void *msg);
+void *msgq_dequeue(struct msgq *q);
+void *msgq_dequeue_timeout(struct msgq *q, uint32_t timeout_ms);
+
+#endif // __MSGQUEUE_H__

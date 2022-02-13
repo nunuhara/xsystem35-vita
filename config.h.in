@@ -1,5 +1,5 @@
 #cmakedefine PACKAGE "@PACKAGE@"
-#define VERSION "2.1.0"
+#define VERSION "2.2.0"
 
 #cmakedefine CMAKE_SYSTEM_NAME "@CMAKE_SYSTEM_NAME@"
 
@@ -23,8 +23,6 @@
 #cmakedefine JOY_DEVICE "@JOY_DEVICE@"
 #cmakedefine MIDI_DEVICE "@MIDI_DEVICE@"
 #cmakedefine SEQ_DEVICE "@SEQ_DEVICE@"
-
-#cmakedefine QUIET_MIDI @QUIET_MIDI@
 
 #cmakedefine HAVE_GETLOGIN @HAVE_GETLOGIN@
 #cmakedefine HAVE_JPEG @HAVE_JPEG@

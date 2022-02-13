@@ -33,7 +33,6 @@
 #include "xsystem35.h"
 #include "sdl_core.h"
 #include "ags.h"
-#include "counter.h"
 #include "nact.h"
 #include "debugger.h"
 #include "selection.h"
@@ -108,9 +107,8 @@ void sys_addMsg(const char *str) {
 	}
 }
 
+EMSCRIPTEN_KEEPALIVE
 void nact_main() {
-	reset_counter_high(SYSTEMCOUNTER_MSEC, 1, 0);
-
 	nact->frame_count = 0;
 	nact->cmd_count = 0;
 	nact->wait_vsync = FALSE;

@@ -37,17 +37,11 @@
 #include "ags.h"
 #include "sdl_core.h"
 #include "alpha_plane.h"
-#include "counter.h"
 #include "utfsjis.h"
 #include "input.h"
 #include "font.h"
 #include "cursor.h"
 #include "image.h"
-
-#define check_param    ags_check_param
-#define check_param_xy ags_check_param_xy
-
-static void    initPal(Palette256 *sys_pal);
 
 static Palette256 pal_256;
 static boolean need_update = TRUE;
@@ -143,8 +137,10 @@ void ags_setWorldSize(int width, int height, int depth) {
 	nact->ags.dib = sdl_getDIB();
 	
 	/* DIBが8以上の場合は、alpha plane を用意 */
-	if (depth > 8)
-		nact->ags.dib->alpha = calloc(width * height, sizeof(BYTE));
+	if (depth > 8) {
+		nact->ags.dib->alpha = malloc(width * height);
+		memset(nact->ags.dib->alpha, 255, width * height);
+	}
 	
 	fade_outed = FALSE;  /* thanx tajiri@wizard */
 	
@@ -191,8 +187,8 @@ void ags_getWindowInfo(DispInfo *info) {
 	sdl_getWindowInfo(info);
 }
 
-void ags_setExposeSwitch(boolean bool) {
-	need_update = bool;
+void ags_setExposeSwitch(boolean expose) {
+	need_update = expose;
 }
 
 void ags_updateArea(int x, int y, int w, int h) {
@@ -246,41 +242,41 @@ void ags_setPaletteToSystem(int src, int cnt) {
 }
 
 void ags_drawRectangle(int x, int y, int w, int h, int col) {
-	if (!check_param(&x, &y, &w, &h)) return;
+	if (!ags_check_param(&x, &y, &w, &h)) return;
 	
 	sdl_drawRectangle(x, y, w, h, col);
 }
 
 void ags_fillRectangle(int x, int y, int w, int h, int col) {
-	if (!check_param(&x, &y, &w, &h)) return;
+	if (!ags_check_param(&x, &y, &w, &h)) return;
 
 	sdl_fillRectangle(x, y, w, h, col);
 }
 
 void ags_drawLine(int x0, int y0, int x1, int y1, int col) {
-	if (!check_param_xy(&x0, &y0)) return;
-	if (!check_param_xy(&x1, &y1)) return;
+	if (!ags_check_param_xy(&x0, &y0)) return;
+	if (!ags_check_param_xy(&x1, &y1)) return;
 
 	sdl_drawLine(x0, y0, x1, y1, col);
 }
 
 void ags_copyArea(int sx, int sy, int w, int h, int dx, int dy) {
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	sdl_copyArea(sx, sy, w, h, dx, dy);
 }
 
 void ags_scaledCopyArea(int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, int mirror_sw) {
-	if (!check_param(&sx, &sy, &sw, &sh)) return;
-	if (!check_param(&dx, &dy, &dw, &dh)) return;
+	if (!ags_check_param(&sx, &sy, &sw, &sh)) return;
+	if (!ags_check_param(&dx, &dy, &dw, &dh)) return;
 	
 	sdl_scaledCopyArea(sx, sy, sw, sh, dx, dy, dw, dh, mirror_sw);
 }
 
 void ags_copyAreaSP(int sx, int sy, int w, int h, int dx, int dy, int col) {
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 
 	sdl_copyAreaSP(sx, sy, w, h, dx, dy, col);
 }
@@ -288,13 +284,13 @@ void ags_copyAreaSP(int sx, int sy, int w, int h, int dx, int dy, int col) {
 void ags_wrapColor(int x, int y, int w, int h, int p1, int p2) {
 	if (nact->sys_world_depth == 8) return;
 	
-	if (!check_param(&x, &y, &w, &h)) return;
+	if (!ags_check_param(&x, &y, &w, &h)) return;
 	
 	sdl_wrapColor(x, y, w, h, p1, p2);
 }
 
 void ags_getPixel(int x, int y, Palette *cell) {
-	if (!check_param_xy(&x, &y)) return;
+	if (!ags_check_param_xy(&x, &y)) return;
 
 	sdl_getPixel(x, y, cell);
 }
@@ -302,7 +298,7 @@ void ags_getPixel(int x, int y, Palette *cell) {
 void ags_changeColorArea(int sx, int sy, int w, int h, int dst, int src, int cnt) {
 	if (nact->sys_world_depth != 8) return;
 	
-	if (!check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
 	
 	{
 		agsurface_t *dib = nact->ags.dib;
@@ -322,7 +318,7 @@ void ags_changeColorArea(int sx, int sy, int w, int h, int dst, int src, int cnt
 }
 
 void* ags_saveRegion(int x, int y, int w, int h) {
-	if (!check_param(&x, &y, &w, &h)) return NULL;
+	if (!ags_check_param(&x, &y, &w, &h)) return NULL;
 
 	return (void *)sdl_saveRegion(x, y, w, h);
 }
@@ -330,7 +326,7 @@ void* ags_saveRegion(int x, int y, int w, int h) {
 void ags_restoreRegion(void *region, int x, int y) {
 	if (region == NULL) return;
 	
-	if (!check_param_xy(&x, &y)) return;
+	if (!ags_check_param_xy(&x, &y)) return;
 	
 	sdl_restoreRegion(region, x, y);
 }
@@ -338,7 +334,7 @@ void ags_restoreRegion(void *region, int x, int y) {
 void ags_putRegion(void *region, int x, int y) {
 	if (region == NULL) return;
 	
-	if (!check_param_xy(&x, &y)) return;
+	if (!ags_check_param_xy(&x, &y)) return;
 	
 	sdl_putRegion(region, x, y);
 }
@@ -346,8 +342,8 @@ void ags_putRegion(void *region, int x, int y) {
 void ags_copyRegion(void *region, int sx, int sy , int w, int h, int dx, int dy) {
 	if (region == NULL) return;
 	
-	if (!check_param_xy(&dx, &dy)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param_xy(&dx, &dy)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	sdl_CopyRegion(region, sx, sy, w, h, dx, dy);
 }
@@ -359,7 +355,7 @@ void ags_delRegion(void *region) {
 }
 
 MyRectangle ags_drawString(int x, int y, const char *src, int col) {
-	if (!check_param_xy(&x, &y)) return (MyRectangle){};
+	if (!ags_check_param_xy(&x, &y)) return (MyRectangle){};
 	
 	char *utf8 = toUTF8(src);
 	SDL_Rect r = sdl_drawString(x, y, utf8, col);
@@ -397,7 +393,7 @@ void ags_drawCg8bit(cgdata *cg, int x, int y) {
 	w = cg->width;
 	h = cg->height;
 	
-	if (!check_param(&x, &y, &w, &h)) return;
+	if (!ags_check_param(&x, &y, &w, &h)) return;
 	
 	cg->data_offset = abs(sy - y) * cg->width + abs(sx - x);
 	sdl_drawImage8_fromData(cg, x, y, w, h);
@@ -411,7 +407,7 @@ void ags_drawCg16bit(cgdata *cg, int x, int y) {
 	w = cg->width;
 	h = cg->height;
 
-	if (!check_param(&x, &y, &w, &h)) return;
+	if (!ags_check_param(&x, &y, &w, &h)) return;
 	
 	cg->data_offset = abs(sy - y) * cg->width + abs(sx - x);
 	sdl_drawImage16_fromData(cg, x, y, w, h);
@@ -420,8 +416,8 @@ void ags_drawCg16bit(cgdata *cg, int x, int y) {
 void ags_copyArea_shadow(int sx, int sy, int w, int h, int dx, int dy) {
 	if (nact->sys_world_depth == 8) return;
 	
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	sdl_copyAreaSP16_shadow(sx, sy, w, h, dx, dy, 255);
 }
@@ -429,8 +425,8 @@ void ags_copyArea_shadow(int sx, int sy, int w, int h, int dx, int dy) {
 void ags_copyArea_transparent(int sx, int sy, int w, int h, int dx, int dy, int col) {
 	if (nact->sys_world_depth == 8) return;
 
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	sdl_copyAreaSP(sx, sy, w, h, dx, dy, col);
 }
@@ -438,8 +434,8 @@ void ags_copyArea_transparent(int sx, int sy, int w, int h, int dx, int dy, int 
 void ags_copyArea_alphaLevel(int sx, int sy, int w, int h, int dx, int dy, int lv) {
 	if (nact->sys_world_depth == 8) return;
 
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	sdl_copyAreaSP16_alphaLevel(sx, sy, w, h, dx, dy, lv);
 }
@@ -447,8 +443,8 @@ void ags_copyArea_alphaLevel(int sx, int sy, int w, int h, int dx, int dy, int l
 void ags_copyArea_alphaBlend(int sx, int sy, int w, int h, int dx, int dy, int lv) {
 	if (nact->sys_world_depth == 8) return;
 
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	sdl_copyAreaSP16_alphaBlend(sx, sy, w, h, dx, dy, lv);
 }
@@ -456,14 +452,14 @@ void ags_copyArea_alphaBlend(int sx, int sy, int w, int h, int dx, int dy, int l
 void ags_copyArea_whiteLevel(int sx, int sy, int w, int h, int dx, int dy, int lv) {
 	if (nact->sys_world_depth == 8) return;
 
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	sdl_copyAreaSP16_whiteLevel(sx, sy, w, h, dx, dy, lv);
 }
 
 MyRectangle ags_floodFill(int x, int y, int col) {
-	if (!check_param_xy(&x, &y))
+	if (!ags_check_param_xy(&x, &y))
 		return (MyRectangle){};
 
 	return sdl_floodFill(x, y, col);
@@ -472,8 +468,8 @@ MyRectangle ags_floodFill(int x, int y, int col) {
 void ags_copyFromAlpha(int sx, int sy, int w, int h, int dx, int dy, ALPHA_DIB_COPY_TYPE flg) {
 	if (nact->sys_world_depth == 8) return;
 
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	sdl_copy_from_alpha(sx, sy, w, h, dx, dy, flg);
 }
@@ -481,8 +477,8 @@ void ags_copyFromAlpha(int sx, int sy, int w, int h, int dx, int dy, ALPHA_DIB_C
 void ags_copyToAlpha(int sx, int sy, int w, int h, int dx, int dy, ALPHA_DIB_COPY_TYPE flg) {
 	if (nact->sys_world_depth == 8) return;
 
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	sdl_copy_to_alpha(sx, sy, w, h, dx, dy, flg);
 }
@@ -490,7 +486,7 @@ void ags_copyToAlpha(int sx, int sy, int w, int h, int dx, int dy, ALPHA_DIB_COP
 void ags_alpha_uppercut(int sx, int sy, int w, int h, int s, int d) {
 	if (nact->sys_world_depth == 8) return;
 	
-	if (!check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
 	
 	alpha_uppercut(nact->ags.dib, sx, sy, w, h, s, d);
 }
@@ -498,7 +494,7 @@ void ags_alpha_uppercut(int sx, int sy, int w, int h, int s, int d) {
 void ags_alpha_lowercut(int sx, int sy, int w, int h, int s, int d) {
 	if (nact->sys_world_depth == 8) return;
 	
-	if (!check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
 
 	alpha_lowercut(nact->ags.dib, sx, sy, w, h, s, d);
 }
@@ -506,7 +502,7 @@ void ags_alpha_lowercut(int sx, int sy, int w, int h, int s, int d) {
 void ags_alpha_setLevel(int x, int y, int w, int h, int lv) {
 	if (nact->sys_world_depth == 8) return;
 	
-	if (!check_param(&x, &y, &w, &h)) return;
+	if (!ags_check_param(&x, &y, &w, &h)) return;
 
 	alpha_set_level(nact->ags.dib, x, y, w, h, lv);
 }
@@ -514,8 +510,8 @@ void ags_alpha_setLevel(int x, int y, int w, int h, int lv) {
 void ags_alpha_copyArea(int sx, int sy, int w, int h, int dx, int dy) {
 	if (nact->sys_world_depth == 8) return;
 	
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	alpha_copy_area(nact->ags.dib, sx, sy, w, h, dx, dy);
 }
@@ -523,7 +519,7 @@ void ags_alpha_copyArea(int sx, int sy, int w, int h, int dx, int dy) {
 void ags_alpha_getPixel(int x, int y, int *pic) {
 	if (nact->sys_world_depth == 8) return;
 	
-	if (!check_param_xy(&x, &y)) {
+	if (!ags_check_param_xy(&x, &y)) {
 		*pic = 0;
 	} else {
 		alpha_get_pixel(nact->ags.dib, x, y, (BYTE *)pic);
@@ -537,7 +533,7 @@ void ags_alpha_setPixel(int x, int y, int w, int h, BYTE *b) {
 	savey = y;
 	savew = w;
 	
-	if (!check_param(&x, &y, &w, &h)) return;	
+	if (!ags_check_param(&x, &y, &w, &h)) return;
 	
 	offset = abs(savey - y) * savew + abs(savex - x);
 	
@@ -549,7 +545,7 @@ void ags_alpha_setPixel(int x, int y, int w, int h, BYTE *b) {
  */
 void ags_fader(ags_faderinfo_t *i) {
 	int cnt_st, step, key = 0, canceled_key = 0;
-	cnt_st = get_high_counter(SYSTEMCOUNTER_MSEC);
+	cnt_st = sdl_getTicks();
 	
 	i->callback(0);
 	
@@ -559,12 +555,12 @@ void ags_fader(ags_faderinfo_t *i) {
 	while(step < i->step_max) {
 		int lefttime, leftstep, mstime, cnt1, cnt2;
 		
-		cnt1 = get_high_counter(SYSTEMCOUNTER_MSEC);
+		cnt1 = sdl_getTicks();
 		i->callback(step);
 		key = sys_getInputInfo();
 		/* 実際の fade にかかった時間 */
 		sdl_sleep(0); /* It's a magic !!! */
-		cnt2 = get_high_counter(SYSTEMCOUNTER_MSEC) - cnt1;
+		cnt2 = sdl_getTicks() - cnt1;
 		
 		lefttime = i->effect_time - (cnt1 + cnt2 - cnt_st); /* fade 残り時間 */
 		leftstep = i->step_max - step;  /* fade 残りステップ数 */
@@ -691,7 +687,7 @@ void ags_setCursorLocation(int x, int y, boolean is_dibgeo) {
 	int dx[8], dy[8];
 	int i, delx, dely;
 	MyPoint p;
-	if (!check_param_xy(&x, &y)) return;
+	if (!ags_check_param_xy(&x, &y)) return;
 
 	/* DIB 座表系か Window 座表系か */
 	if (is_dibgeo) {
@@ -741,8 +737,8 @@ void ags_copyArea_shadow_withrate(int sx, int sy, int w, int h, int dx, int dy, 
 	
 	if (lv == 0) return;
 	
-	if (!check_param(&sx, &sy, &w, &h)) return;
-	if (!check_param(&dx, &dy, &w, &h)) return;
+	if (!ags_check_param(&sx, &sy, &w, &h)) return;
+	if (!ags_check_param(&dx, &dy, &w, &h)) return;
 	
 	sdl_copyAreaSP16_shadow(sx, sy, w, h, dx, dy, lv);
 } 
@@ -760,7 +756,7 @@ int ags_getCursorMoveTime() {
  * 
  */
 void ags_zoom(int x, int y, int w, int h) {
-	if (!check_param(&x, &y, &w, &h)) return;
+	if (!ags_check_param(&x, &y, &w, &h)) return;
 
 	sdl_zoom(x, y, w, h);
 }
@@ -769,6 +765,6 @@ agsurface_t *ags_getDIB() {
 	return nact->ags.dib;
 }
 
-void ags_autorepeat(boolean bool) {
-	sdl_setAutoRepeat(bool);
+void ags_autorepeat(boolean enable) {
+	sdl_setAutoRepeat(enable);
 }

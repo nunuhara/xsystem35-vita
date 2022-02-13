@@ -41,7 +41,7 @@
 #include "sdl_keytable.h"
 
 static void sdl_getEvent(void);
-static void keyEventProsess(SDL_KeyboardEvent *e, boolean bool);
+static void keyEventProsess(SDL_KeyboardEvent *e, boolean pressed);
 
 /* pointer の状態 */
 int mousex, mousey, mouseb;
@@ -300,10 +300,10 @@ static void sdl_getEvent(void) {
 }
 
 /* キー情報の取得 */
-static void keyEventProsess(SDL_KeyboardEvent *e, boolean bool) {
+static void keyEventProsess(SDL_KeyboardEvent *e, boolean pressed) {
 	int code = sdl_keytable[e->keysym.scancode];
-	RawKeyInfo[code] = bool;
-	send_agsevent(bool ? AGSEVENT_KEY_PRESS : AGSEVENT_KEY_RELEASE, code);
+	RawKeyInfo[code] = pressed;
+	send_agsevent(pressed ? AGSEVENT_KEY_PRESS : AGSEVENT_KEY_RELEASE, code);
 }
 
 int sdl_getKeyInfo() {

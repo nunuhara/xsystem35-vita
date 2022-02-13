@@ -1,6 +1,7 @@
 add_library(src_lib STATIC
   gameresource.c
   hankaku.c
+  msgqueue.c
   utfsjis.c
   )
 target_compile_options(src_lib PRIVATE -Wno-pointer-sign -Wall)
@@ -57,7 +58,7 @@ target_sources(xsystem35 PRIVATE
 
 # Misc
 target_sources(xsystem35 PRIVATE
-  LittleEndian.c counter.c input.c profile.c mt19937-1.c filecheck.c mmap.c)
+  LittleEndian.c input.c profile.c mt19937-1.c filecheck.c mmap.c)
 
 # Scenario
 target_sources(xsystem35 PRIVATE
@@ -107,6 +108,7 @@ if (EMSCRIPTEN)
     "SHELL:-s EXPORTED_RUNTIME_METHODS=getValue,addRunDependency,removeRunDependency")
 
 elseif (ANDROID)
+  target_link_libraries(src_lib PRIVATE SDL2)
   target_link_libraries(xsystem35 PRIVATE SDL2 SDL2_ttf SDL2_mixer ${ndk_zlib} ${ndk_log})
 elseif (VITA)
   target_sources(xsystem35 PRIVATE vita_joystick.c vita_launcher.c vita_port.c)
@@ -144,6 +146,7 @@ elseif (VITA)
 	c
 	)
 else()  # non-emscripten, non-android
+  target_link_libraries(src_lib PRIVATE PkgConfig::SDL2)
   target_link_libraries(xsystem35 PRIVATE m ZLIB::ZLIB)
   target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2)
   target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2TTF)
@@ -159,6 +162,9 @@ else()  # non-emscripten, non-android
     else()
       target_link_libraries(xsystem35 PRIVATE ${cJSON})
     endif()
+  endif()
+  if (ENABLE_MIDI_PORTMIDI)
+    target_link_libraries(xsystem35 PRIVATE ${PORTMIDI})
   endif()
 
   install(TARGETS xsystem35 RUNTIME DESTINATION bin)

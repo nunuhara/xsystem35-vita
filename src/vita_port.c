@@ -78,7 +78,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t off)
 
 	ssize_t ret;
 	size_t bytes;
-	off_t size = sbuf.st_size - off;
+	//off_t size = sbuf.st_size - off;
 	char *buf = mmap_malloc(sbuf.st_size);
 	if (!buf) {
 		NOMEMERR();
@@ -101,6 +101,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t off)
 int munmap(void *addr, size_t length)
 {
 	mmap_free(addr);
+	return 0;
 }
 
 uid_t getuid(void)
@@ -122,6 +123,7 @@ int execvp(const char *file, char *const argv[])
 int usleep(useconds_t usec)
 {
 	SDL_Delay(usec / 1000); // loss of precision, but doesn't matter
+	return 0;
 }
 
 int uname(struct utsname *u)

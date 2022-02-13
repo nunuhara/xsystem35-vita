@@ -61,7 +61,6 @@
 #include "nact.h"
 #include "profile.h"
 #include "randMT.h"
-#include "counter.h"
 #include "ags.h"
 #include "font.h"
 #include "sdl_core.h"
@@ -187,7 +186,7 @@ void sys_message(int lv, char *format, ...) {
 	int prio = prio_table[min(lv, 5)];
 	__android_log_vprint(prio, "xsystem35", format, args);
 #else
-	if (!dbg_console_vprintf(format, args))
+	if (!dbg_console_vprintf(lv, format, args))
 		vfprintf(stderr, format, args);
 #endif
 	va_end(args);
@@ -237,9 +236,6 @@ static void sys35_init() {
 	sdl_setFullscreen(fs_on);
 	nact->noantialias = font_noantialias;
 	ags_setAntialiasedStringMode(!font_noantialias);
-	
-	
-	reset_counter(0);
 
 	sgenrand(getpid());
 

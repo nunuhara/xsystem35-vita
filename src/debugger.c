@@ -49,7 +49,6 @@ static struct {
 void dbg_init(const char *symbols_path, boolean use_dap) {
 	dbg_impl = use_dap ? &dbg_dap_impl : &dbg_cui_impl;
 	dbg_impl->init(symbols_path);
-	dbg_state = DBG_STOPPED_ENTRY;
 }
 
 void dbg_quit() {
@@ -539,11 +538,11 @@ void dbg_onsleep(void) {
 		dbg_impl->onsleep();
 }
 
-boolean dbg_console_vprintf(const char *format, va_list ap) {
+boolean dbg_console_vprintf(int lv, const char *format, va_list ap) {
 	if (!dbg_impl || !dbg_impl->console_output)
 		return false;
 	char buf[1024];
 	vsnprintf(buf, sizeof(buf), format, ap);
-	dbg_impl->console_output(buf);
+	dbg_impl->console_output(lv, buf);
 	return true;
 }

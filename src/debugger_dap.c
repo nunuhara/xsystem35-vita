@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <SDL_mutex.h>
 #include <SDL_thread.h>
 #ifdef _WIN32
 #include <fcntl.h>
@@ -31,6 +30,7 @@
 #include "debugger.h"
 #include "debugger_private.h"
 #include "debug_symbol.h"
+#include "msgqueue.h"
 #include "system.h"
 #include "nact.h"
 #include "variable.h"
@@ -42,8 +42,14 @@ enum VariablesReference {
 	VREF_STRINGS,
 };
 
-static boolean initialized = false;
+// Exception Breakpoint Filters.
+static const char ebf_warnings[] = "warnings";
+
+static bool initialized;
+static char *symbols_path;
 static char *src_dir;
+static struct msgq *queue;
+static bool break_on_warnings;
 
 cJSON *create_source(const char *name) {
 	cJSON *source = cJSON_CreateObject();
@@ -82,7 +88,7 @@ static void emit_terminated_event(void) {
 	send_json(event);
 }
 
-static void emit_stop_event(void) {
+static void emit_stopped_event(void) {
 	const char *reason;
 	switch (dbg_state) {
 	case DBG_STOPPED_ENTRY: reason = "entry"; break;
@@ -90,6 +96,7 @@ static void emit_stop_event(void) {
 	case DBG_STOPPED_NEXT: reason = "step"; break;
 	case DBG_STOPPED_BREAKPOINT: reason = "breakpoint"; break;
 	case DBG_STOPPED_INTERRUPT: reason = "pause"; break;
+	case DBG_STOPPED_EXCEPTION: reason = "exception"; break;
 	default: reason = "unknown"; break;
 	}
 
@@ -102,7 +109,7 @@ static void emit_stop_event(void) {
 	send_json(event);
 }
 
-static void emit_output_event(const char *output) {
+static void emit_output_event(int lv, const char *output) {
 	cJSON *event = cJSON_CreateObject(), *body;
 	cJSON_AddStringToObject(event, "type", "event");
 	cJSON_AddStringToObject(event, "event", "output");
@@ -117,34 +124,52 @@ static void emit_output_event(const char *output) {
 		cJSON_AddNumberToObject(body, "line", line);
 
 	send_json(event);
+
+	if (break_on_warnings && lv <= 1)
+		dbg_state = DBG_STOPPED_EXCEPTION;
 }
 
 static void cmd_initialize(cJSON *args, cJSON *resp) {
-	if (!symbols) {
-		cJSON_AddBoolToObject(resp, "success", false);
-		cJSON_AddStringToObject(resp, "message", "xsystem35: Cannot load debug symbols");
-		return;
-	}
-	cJSON *body;
+	cJSON *body, *filters, *filter;
 	cJSON_AddBoolToObject(resp, "success", true);
 	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
 	cJSON_AddBoolToObject(body, "supportsConditionalBreakpoints", true);
 	cJSON_AddBoolToObject(body, "supportsConfigurationDoneRequest", true);
 	cJSON_AddBoolToObject(body, "supportsEvaluateForHovers", true);
 	cJSON_AddBoolToObject(body, "supportsSetVariable", true);
+	cJSON_AddItemToObjectCS(body, "exceptionBreakpointFilters", filters = cJSON_CreateArray());
+	cJSON_AddItemToArray(filters, filter = cJSON_CreateObject());
+	cJSON_AddStringToObject(filter, "filter", ebf_warnings);
+	cJSON_AddStringToObject(filter, "label", "Stop on warnings");
 }
 
 static void cmd_launch(cJSON *args, cJSON *resp) {
+	cJSON *noDebug = cJSON_GetObjectItemCaseSensitive(args, "noDebug");
+	if (cJSON_IsTrue(noDebug)) {
+		cJSON_AddBoolToObject(resp, "success", true);
+		initialized = true;
+		return;
+	}
+
+	symbols = dsym_load(symbols_path);
+	if (!symbols) {
+		cJSON_AddBoolToObject(resp, "success", false);
+		cJSON_AddStringToObject(resp, "message", "xsystem35: Cannot load debug symbols");
+		return;
+	}
+
 	cJSON *srcDir = cJSON_GetObjectItemCaseSensitive(args, "srcDir");
 	if (cJSON_IsString(srcDir))
 		src_dir = strdup(srcDir->valuestring);
+	if (cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(args, "stopOnEntry")))
+		dbg_state = DBG_STOPPED_ENTRY;
 	cJSON_AddBoolToObject(resp, "success", true);
 
 	emit_initialized_event();
-	initialized = true;
 }
 
 static void cmd_configurationDone(cJSON *args, cJSON *resp) {
+	initialized = true;
 	cJSON_AddBoolToObject(resp, "success", true);
 }
 
@@ -236,6 +261,17 @@ static void cmd_setBreakpoints(cJSON *args, cJSON *resp) {
 	}
 }
 
+static void cmd_setExceptionBreakpoints(cJSON *args, cJSON *resp) {
+	cJSON *filters = cJSON_GetObjectItemCaseSensitive(args, "filters");
+	break_on_warnings = false;
+	cJSON *filter;
+	cJSON_ArrayForEach(filter, filters) {
+		if (cJSON_IsString(filter) && !strcmp(filter->valuestring, ebf_warnings))
+			break_on_warnings = true;
+	}
+	cJSON_AddBoolToObject(resp, "success", true);
+}
+
 static void cmd_evaluate(cJSON *args, cJSON *resp) {
 	cJSON *expression = cJSON_GetObjectItemCaseSensitive(args, "expression");
 	if (!cJSON_IsString(expression)) {
@@ -304,7 +340,7 @@ static void cmd_scopes(cJSON *args, cJSON *resp) {
 	cJSON_AddItemToArray(scopes, strings = cJSON_CreateObject());
 	cJSON_AddStringToObject(strings, "name", "Strings");
 	cJSON_AddNumberToObject(strings, "variablesReference", VREF_STRINGS);
-	cJSON_AddNumberToObject(strings, "indexedVariables", svar_count() + 1);
+	cJSON_AddNumberToObject(strings, "indexedVariables", svar_maxindex() + 1);
 	cJSON_AddBoolToObject(strings, "expensive", false);
 }
 
@@ -345,11 +381,7 @@ static void cmd_variables(cJSON *args, cJSON *resp) {
 		cJSON_AddBoolToObject(resp, "success", true);
 		cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
 		cJSON_AddItemToObjectCS(body, "variables", variables = cJSON_CreateArray());
-		if (start == 0) {
-			start++;
-			count--;
-		}
-		int end = svar_count() + 1;
+		int end = svar_maxindex() + 1;
 		if (end > start + count)
 			end = start + count;
 		for (int i = start; i < end; i++) {
@@ -402,7 +434,7 @@ static void cmd_setVariable(cJSON *args, cJSON *resp) {
 		cJSON_AddStringToObject(body, "value", new_value);
 	} else if (cJSON_IsNumber(vref) && vref->valueint == VREF_STRINGS) {
 		int idx;
-		if (sscanf(name->valuestring, "[%d]", &idx) != 1 || idx < 1 || idx > svar_count()) {
+		if (sscanf(name->valuestring, "[%d]", &idx) != 1 || (unsigned)idx > svar_maxindex()) {
 			cJSON_AddBoolToObject(resp, "success", false);
 			cJSON_AddStringToObject(resp, "message", "invalid string index");
 			return;
@@ -480,6 +512,8 @@ static boolean handle_request(cJSON *request) {
 		cmd_evaluate(args, resp);
 	} else if (!strcmp(command->valuestring, "setBreakpoints")) {
 		cmd_setBreakpoints(args, resp);
+	} else if (!strcmp(command->valuestring, "setExceptionBreakpoints")) {
+		cmd_setExceptionBreakpoints(args, resp);
 	} else if (!strcmp(command->valuestring, "threads")) {
 		cmd_threads(args, resp);
 	} else if (!strcmp(command->valuestring, "scopes")) {
@@ -508,55 +542,6 @@ static boolean handle_message(char *msg) {
 	return continue_repl;
 }
 
-struct cmdq_elem {
-	char *cmd;
-	struct cmdq_elem *next;
-};
-
-struct {
-	SDL_mutex *mutex;
-	SDL_cond *cond_nonempty;
-	struct cmdq_elem *head;
-	struct cmdq_elem *last;
-} cmd_queue;
-
-static boolean cmdq_isempty(void) {
-	return !cmd_queue.head;
-}
-
-static void cmdq_enqueue(char *cmd) {
-	struct cmdq_elem *e = malloc(sizeof(struct cmdq_elem));
-	e->cmd = cmd;
-	e->next = NULL;
-
-	SDL_LockMutex(cmd_queue.mutex);
-	if (!cmd_queue.head) {
-		cmd_queue.head = cmd_queue.last = e;
-	} else {
-		cmd_queue.last->next = e;
-		cmd_queue.last = e;
-	}
-	SDL_UnlockMutex(cmd_queue.mutex);
-	SDL_CondSignal(cmd_queue.cond_nonempty);
-}
-
-static char *cmdq_dequeue(void) {
-	SDL_LockMutex(cmd_queue.mutex);
-	while (!cmd_queue.head)
-		SDL_CondWait(cmd_queue.cond_nonempty, cmd_queue.mutex);
-
-	struct cmdq_elem *e = cmd_queue.head;
-	cmd_queue.head = e->next;
-	if (!e->next)
-		cmd_queue.last = NULL;
-
-	SDL_UnlockMutex(cmd_queue.mutex);
-
-	char *cmd = e->cmd;
-	free(e);
-	return cmd;
-}
-
 static int read_command_thread(void *data) {
 	int content_length = -1;
 	char header[512];
@@ -570,19 +555,19 @@ static int read_command_thread(void *data) {
 			}
 			char *buf = malloc(content_length);
 			fread(buf, content_length, 1, stdin);
-			cmdq_enqueue(buf);
+			msgq_enqueue(queue, buf);
 			content_length = -1;
 		} else {
 			fprintf(stderr, "Unknown Debug Adapter Protocol header: %s", header);
 		}
 	}
-	cmdq_enqueue(NULL);  // EOF
+	msgq_enqueue(queue, NULL);  // EOF
 	return 0;
 }
 
-static void dbg_dap_init(const char *symbols_path) {
-	cmd_queue.mutex = SDL_CreateMutex();
-	cmd_queue.cond_nonempty = SDL_CreateCond();
+static void dbg_dap_init(const char *path) {
+	symbols_path = strdup(path);
+	queue = msgq_new();
 
 #ifdef _WIN32
 	_setmode(_fileno(stdin), _O_BINARY);
@@ -591,10 +576,8 @@ static void dbg_dap_init(const char *symbols_path) {
 
 	SDL_CreateThread(read_command_thread, "Debugger", NULL);
 
-	symbols = dsym_load(symbols_path);
-
 	while (!initialized) {
-		char *msg = cmdq_dequeue();
+		char *msg = msgq_dequeue(queue);
 		if (!msg)
 			break;
 		handle_message(msg);
@@ -606,12 +589,12 @@ static void dbg_dap_quit(void) {
 }
 
 static void dbg_dap_repl(void) {
-	emit_stop_event();
+	emit_stopped_event();
 	dbg_state = DBG_RUNNING;
 
 	boolean continue_repl = true;
 	while (continue_repl) {
-		char *msg = cmdq_dequeue();
+		char *msg = msgq_dequeue(queue);
 		if (!msg)
 			break;
 		continue_repl = handle_message(msg);
@@ -619,13 +602,13 @@ static void dbg_dap_repl(void) {
 }
 
 static void dbg_dap_onsleep(void) {
-	while (!cmdq_isempty()) {
-		char *msg = cmdq_dequeue();
+	while (!msgq_isempty(queue)) {
+		char *msg = msgq_dequeue(queue);
 		if (!msg)
 			break;
 		handle_message(msg);
 	}
-	if (dbg_state == DBG_STOPPED_INTERRUPT)
+	if (dbg_state == DBG_STOPPED_INTERRUPT || dbg_state == DBG_STOPPED_EXCEPTION)
 		dbg_main();
 }
 
