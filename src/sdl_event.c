@@ -25,6 +25,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <SDL.h>
 
@@ -182,14 +183,20 @@ static void sdl_getEvent(void) {
 #endif
 			break;
 		case SDL_MOUSEMOTION:
+			if (e.motion.which == SDL_TOUCH_MOUSEID)
+				break;
 			mousex = e.motion.x;
 			mousey = e.motion.y;
 			send_agsevent(AGSEVENT_MOUSE_MOTION, 0);
 			break;
 		case SDL_MOUSEBUTTONDOWN:
+			if (e.button.which == SDL_TOUCH_MOUSEID)
+				break;
 			mouse_down(e.button.button);
 			break;
 		case SDL_MOUSEBUTTONUP:
+			if (e.button.which == SDL_TOUCH_MOUSEID)
+				break;
 			mouse_up(e.button.button, &m2b);
 			break;
 
