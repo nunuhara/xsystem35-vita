@@ -103,49 +103,6 @@ int munmap(void *addr, size_t length)
 	mmap_free(addr);
 }
 
-static char vita_cwd[PATH_MAX] = VITA_HOME;
-static char path_buf[PATH_MAX] = {0};
-
-static int is_abspath(const char *path)
-{
-	for (int i = 0; i < 5 && *path; i++, path++) {
-		if (*path == '/')
-			return 0;
-		if (*path == ':')
-			return 1;
-	}
-	return 0;
-}
-
-char *vita_path(const char *path)
-{
-	// substitute ux0: for '/'
-	if (path[0] == '/')
-		snprintf(path_buf, PATH_MAX-1, "ux0:%s", path);
-	// substitute vita_cwd for '.'
-	else if (path[0] == '.' && path[1] == '/')
-		snprintf(path_buf, PATH_MAX-1, "%s%s", vita_cwd, path+1);
-	// absolute paths are OK as is
-	else if (is_abspath(path))
-		strncpy(path_buf, path, PATH_MAX-1);
-	// prefix relative paths with vita_cwd/
-	else
-		snprintf(path_buf, PATH_MAX-1, "%s/%s", vita_cwd, path);
-	return path_buf;
-}
-
-int chdir(const char *path)
-{
-	strncpy(vita_cwd, path, PATH_MAX-1);
-}
-
-char *getcwd(char *buf, size_t size)
-{
-	strncpy(buf, vita_cwd, size - 1);
-	buf[size-1] = '\0';
-	return buf;
-}
-
 uid_t getuid(void)
 {
 	return 1000;

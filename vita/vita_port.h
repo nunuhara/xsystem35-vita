@@ -61,7 +61,6 @@ enum {
 	VITA_NR_BUTTONS     = 12
 };
 
-void va_alarm_handler();
 int vita_joystick_map(int in_key, const char *out);
 void vita_joystick_event(SDL_Event *e);
 

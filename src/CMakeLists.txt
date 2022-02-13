@@ -111,6 +111,7 @@ elseif (VITA)
 	SceHid_stub
 	ScePgf_stub
 	SceAppMgr_stub
+	SceMotion_stub
 	m
 	c
 	)

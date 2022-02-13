@@ -96,10 +96,5 @@ typedef char           ___boolean;
 		   (((a) >> 8) & 0x0000ff00) | \
 		   ((unsigned int)(a) >>24) )
 
-#ifdef VITA
-char *vita_path(const char *path);
-#define PATH vita_path
-#else
 #define PATH(x) x
-#endif /* VITA */
 #endif /* !__PORTAB__ */

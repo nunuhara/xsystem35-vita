@@ -646,7 +646,8 @@ static void registerGameFiles(void) {
 
 int main(int argc, char **argv) {
 #ifdef VITA
-	debugNetInit("192.168.11.118", 18194, DEBUGLEVEL_DEBUG);
+	debugNetInit("192.168.11.117", 18194, DEBUGLEVEL_DEBUG);
+	chdir(VITA_HOME);
 	vita_launcher(&argc, &argv);
 	setenv("HOME", VITA_HOME, 1);
 #endif
