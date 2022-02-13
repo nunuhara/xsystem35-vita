@@ -153,7 +153,7 @@ static int cdrom_start(int trk, int loop) {
 	if (mix_music)
 		Mix_FreeMusic(mix_music);
 
-#ifdef __ANDROID__
+#if defined (__ANDROID__) || defined (VITA)
 	// Mix_LoadMUS uses SDL_RWFromFile which requires absolute path on Android
 	char path[PATH_MAX];
 	if (!realpath(playlist[trk -2], path))
