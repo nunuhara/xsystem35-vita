@@ -37,8 +37,7 @@
 #include <signal.h>
 #endif
 #ifdef ENABLE_GTK
-#  define GTK_RC_NAME ".gtk/gtkrc"
-#  include <gtk/gtk.h>
+#include <gtk/gtk.h>
 #endif
 
 #include <SDL.h>
@@ -74,8 +73,8 @@
 #include "ald_manager.h"
 #include "gameresource.h"
 #include "filecheck.h"
-#include "joystick.h"
 #include "s39init.h"
+#include "msgskip.h"
 
 #ifdef ENABLE_MMX
 #include "haveunit.h"
@@ -98,13 +97,6 @@ static int audio_buffer_size = 0;
 static char *fontname_tt[FONTTYPEMAX] = {DEFAULT_GOTHIC_TTF, DEFAULT_MINCHO_TTF};
 static char fontface[FONTTYPEMAX];
 
-#ifdef ENABLE_SDLTTF
-#define DEFAULT_FONT_DEVICE FONT_SDLTTF
-#else
-#define DEFAULT_FONT_DEVICE FONT_FT2
-#endif
-
-static fontdev_t fontdev = DEFAULT_FONT_DEVICE;
 static boolean font_noantialias;
 
 /* fullscreen on from command line */
@@ -138,22 +130,7 @@ static void sys35_usage(boolean verbose) {
 #endif
 	puts(" -M0            : Disable MIDI output");
 	
-	puts(" -devjoy device : set joystic device name to 'device'");
-	puts("                    if 'device' is set to 'none', don't use the device");
-
-	puts(" -devfont device: select font device");
-#ifdef ENABLE_SDLTTF
-	puts(" -devfont sdl   : SDL_ttf");
-#endif
-#ifdef ENABLE_FT2
-	puts(" -devfont ft2   : FreeType");
-#endif
-
-#ifdef ENABLE_SDLTTF
-	puts("                : default is sdl");
-#else
-	puts("                : default is ft2");
-#endif
+	puts(" -devjoy device : joystick device index (0-)");
 
 	puts(" -ttfont_mincho: set TrueType font for mincho");
 	puts(" -ttfont_gothic: set TrueType font for mincho");
@@ -242,20 +219,6 @@ void sys_exit(int code) {
 #endif
 }
 
-static int check_fontdev(char *devname) {
-#ifdef ENABLE_SDLTTF
-	if (0 == strcmp(devname, "sdl")) {
-		return FONT_SDLTTF;
-	}
-#endif
-#ifdef ENABLE_FT2
-	if (0 == strcmp(devname, "ft2")) {
-		return FONT_FT2;
-	}
-#endif
-	return DEFAULT_FONT_DEVICE;
-}
-
 static void sys35_init() {
 	int i;
 	
@@ -265,16 +228,12 @@ static void sys35_init() {
 
 	v_initVars();
 	
-	nact->fontdev = fontdev;
-	
 	ags_init();
 
-	for (i = 0; i < FONTTYPEMAX; i++) {
-		nact->ags.font->name[i] = fontname_tt[i];
-		nact->ags.font->face[i] = fontface[i];
-	}
+	for (i = 0; i < FONTTYPEMAX; i++)
+		font_set_name_and_index(i, fontname_tt[i], fontface[i]);
 	
-	ags_fullscreen(fs_on);
+	sdl_setFullscreen(fs_on);
 	nact->noantialias = font_noantialias;
 	ags_setAntialiasedStringMode(!font_noantialias);
 	
@@ -290,10 +249,9 @@ static void sys35_init() {
 	msg_init();
 	sel_init();
 
-	s39ain_init();
-#ifdef ENABLE_GTK
-	s39ini_init();
-#endif
+	if (nact->files.ain)
+		s39ain_init(nact->files.ain, &nact->ain);
+	msgskip_init(nact->files.msgskip);
 }
 
 static void sys35_remove() {
@@ -302,7 +260,6 @@ static void sys35_remove() {
 #ifdef ENABLE_GTK
 	s39ini_remove();
 #endif
-	/* joy_close(); */
 #if DEBUG
 	if (debuglv >= 3) {
 		fclose(fpdebuglog);
@@ -360,16 +317,12 @@ static void sys35_ParseOption(int *argc, char **argv) {
 			midi_set_output_device(argv[i][2] | subdev);
 		} else if (0 == strcmp(argv[i], "-devjoy")) {
 			if (argv[i + 1] != NULL) {
-				joy_set_devicename(argv[i + 1]);
+				sdl_setJoyDeviceIndex(atoi(argv[i + 1]));
 			}
 		} else if (0 == strcmp(argv[i], "-fullscreen")) {
 			fs_on = TRUE;
 		} else if (0 == strcmp(argv[i], "-noantialias")) {
 			font_noantialias = TRUE;
-		} else if (0 == strcmp(argv[i], "-devfont")) {
-			if (argv[i + 1] != NULL) {
-				fontdev = check_fontdev(argv[i + 1]);
-			}
 		} else if (0 == strcmp(argv[i], "-ttfont_gothic")) {
 			if (argv[i + 1] != NULL) {
 				fontname_tt[FONT_GOTHIC] = argv[i + 1];
@@ -394,11 +347,6 @@ static void sys35_ParseOption(int *argc, char **argv) {
 static void check_profile() {
 	char *param;
 	
-	/* フォントデバイスの選択 */
-	param = get_profile("font_device");
-	if (param) {
-		fontdev = check_fontdev(param);
-	}
 	/* ゴシックフォント(TT)の設定 */
 	param = get_profile("ttfont_gothic");
 	if (param) {
@@ -440,7 +388,7 @@ static void check_profile() {
 	/* joystick device name の設定 */
 	param = get_profile("joy_device");
 	if (param) {
-		joy_set_devicename(param);
+		sdl_setJoyDeviceIndex(atoi(param));
 	}
 	/* Raw MIDI device name の設定 */
 	param = get_profile("midi_device");
@@ -572,7 +520,6 @@ int main(int argc, char **argv) {
 	vita_launcher(&argc, &argv);
 	setenv("HOME", VITA_HOME, 1);
 #endif
-	char *homedir = getenv("HOME"), *rc_name, *rc_path;
 #ifdef HAVE_SIGACTION
 	sys_set_signalhandler(SIGINT, SIG_IGN);
 #endif
@@ -624,27 +571,13 @@ int main(int argc, char **argv) {
         textdomain(PACKAGE);
 #endif
 
-#ifdef ENABLE_GTK
-	gtk_set_locale();
-	gtk_init(&argc, &argv);
-#endif
+	sys35_init();
 
-	sys35_init();	
-	
 #ifdef ENABLE_GTK
-	rc_name = get_profile("gtkrc_path");
-	if (!rc_name) {
-		rc_name = GTK_RC_NAME;
-	}
-	rc_path = (char *)malloc(sizeof(char) * (strlen(homedir) + strlen(rc_name)) + 2);
-	strcpy(rc_path, homedir);
-	strcat(rc_path, "/");
-	strcat(rc_path, rc_name);
-	
-	gtk_rc_parse(rc_path);
-	free(rc_path);
-	menu_init();
+	gtk_init(&argc, &argv);
+	s39ini_init();
 #endif
+	menu_init();
 	
 	nact_main();
 #ifdef __EMSCRIPTEN__

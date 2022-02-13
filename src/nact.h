@@ -78,7 +78,6 @@ typedef struct {
 	void *datatbl_addr; /* データテーブルのアドレス */
 	int fnc_return_value; /* 関数の戻り値として返す値 (~0,cali:で渡す値) */
 	
-#if 1
 	/* ags info */
 	Palette256 *sys_pal;
 	boolean     sys_pal_changed;
@@ -86,10 +85,6 @@ typedef struct {
 	MyDimension sys_world_size;
 	int         sys_world_depth;
 	int         sys_mouse_movesw; /* 0:IZを無視, 1: 直接指定場所へ, 2: スムーズに指定場所に */
-	boolean     sys_fullscreen_capable;
-	boolean     sys_fullscreen_on;
-	
-#endif
 
 	/* for fader/ecopy */
 	int     effect_rate;
@@ -112,13 +107,12 @@ typedef struct {
 	ags_t ags;
 	boolean noantialias; /* antialias を使用しない */
 	boolean noimagecursor; /* リソースファイルのカーソルを読みこまない */
-	fontdev_t fontdev; // 選択された fontdevice
 	
 	/* メッセージ関連 */
 	msg_t msg;
  	boolean   is_msg_out;          /* 通常メッセージを表示するか */
 	void (*msgout)(const char *msg);     // 通常以外(DLL等)のメッセージ表示関数
-	
+
 	/* 選択肢関連 */
 	sel_t sel;
 	

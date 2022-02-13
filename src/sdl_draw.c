@@ -22,6 +22,7 @@
 
 #include "config.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,8 +56,6 @@ static int fadestep[256] =
  244,244,245,245,246,246,247,247,247,248,248,249,249,249,250,250,250,251,251,
  251,251,252,252,252,252,253,253,253,253,254,254,254,254,254,254,255,255,255,
  255,255,255,255,255,255,255,255,255,255,255};
-
-static SDL_Surface *s_fader;  /* fade in /out 用 work surface */
 
 static void sdl_pal_check(void) {
 	if (nact->sys_pal_changed) {
@@ -135,8 +134,6 @@ static void send_agsevent(int type, int code)
 
 void sdl_updateScreen(void)
 {
-	SDL_Rect dst;
-
 	// translate joystick to mouse movement
 	// we do this here to ensure it runs exactly once per frame
 	if (fabsf(joydir_x) > joystick_dead_zone || fabs(joydir_y) > joystick_dead_zone) {
@@ -155,7 +152,7 @@ void sdl_updateScreen(void)
 		return;
 	SDL_UpdateTexture(sdl_texture, NULL, sdl_display->pixels, sdl_display->pitch);
 	SDL_RenderClear(sdl_renderer);
-	setRect(dst, renderoffset_x, renderoffset_y, view_w*renderscale, view_h*renderscale);
+	SDL_Rect dst = {renderoffset_x, renderoffset_y, view_w*renderscale, view_h*renderscale};
 	SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, &dst);
 	if (!hide_cursor)
 		render_sw_cursor();
@@ -208,21 +205,16 @@ void sdl_wait_vsync() {
 
 /* off-screen の指定領域を Main Window へ転送 */
 void sdl_updateArea(MyRectangle *src, MyPoint *dst) {
-	SDL_Rect rect_s, rect_d;
+	SDL_Rect rect_d = {winoffset_x + dst->x, winoffset_y + dst->y, src->w, src->h};
 	
-	setRect(rect_s, src->x, src->y, src->width, src->height);
-	setRect(rect_d, winoffset_x + dst->x, winoffset_y + dst->y, src->width, src->height);
-	
-	SDL_BlitSurface(sdl_dib, &rect_s, sdl_display, &rect_d);
+	SDL_BlitSurface(sdl_dib, src, sdl_display, &rect_d);
 	
 	sdl_dirty = TRUE;
 }
 
 /* 全画面更新 */
 static void sdl_updateAll() {
-	SDL_Rect rect;
-
-	setRect(rect, winoffset_x, winoffset_y, view_w, view_h);
+	SDL_Rect rect = {winoffset_x, winoffset_y, view_w, view_h};
 	
 	SDL_BlitSurface(sdl_dib, &sdl_view, sdl_display, &rect);
 
@@ -245,39 +237,35 @@ void sdl_setPalette(Palette256 *pal, int src, int cnt) {
 }
 
 /* 矩形の描画 */
-void sdl_drawRectangle(int x, int y, int w, int h, int c) {
-	SDL_Rect rect;
-	
+void sdl_drawRectangle(int x, int y, int w, int h, BYTE c) {
 	sdl_pal_check();
-	
-	if (c < 256 && sdl_dib->format->BitsPerPixel > 8)
-		c = SDL_MapRGB(sdl_dib->format, sdl_col[c].r, sdl_col[c].g, sdl_col[c].b);
 
-	setRect(rect,x,y,w,1);
-	SDL_FillRect(sdl_dib, &rect, c);
+	Uint32 col = (sdl_dib->format->BitsPerPixel == 8) ? c
+		: SDL_MapRGB(sdl_dib->format, sdl_col[c].r, sdl_col[c].g, sdl_col[c].b);
+
+	SDL_Rect rect = {x, y, w, 1};
+	SDL_FillRect(sdl_dib, &rect, col);
 	
-	setRect(rect,x,y,1,h);
-	SDL_FillRect(sdl_dib, &rect, c);
+	rect = (SDL_Rect){x, y, 1, h};
+	SDL_FillRect(sdl_dib, &rect, col);
 	
-	setRect(rect,x,y+h-1,w,1);
-	SDL_FillRect(sdl_dib, &rect, c);
+	rect = (SDL_Rect){x, y + h - 1, w, 1};
+	SDL_FillRect(sdl_dib, &rect, col);
 	
-	setRect(rect,x+w-1,y,1,h);
-	SDL_FillRect(sdl_dib, &rect, c);
+	rect = (SDL_Rect){x + w - 1, y, 1, h};
+	SDL_FillRect(sdl_dib, &rect, col);
 }
 
 /* 矩形塗りつぶし */
-void sdl_fillRectangle(int x, int y, int w, int h, unsigned long c) {
-	SDL_Rect rect;
-	
+void sdl_fillRectangle(int x, int y, int w, int h, BYTE c) {
 	sdl_pal_check();
 	
-	setRect(rect,x,y,w,h);
+	SDL_Rect rect = {x, y, w, h};
+
+	Uint32 col = (sdl_dib->format->BitsPerPixel == 8) ? c
+		: SDL_MapRGB(sdl_dib->format, sdl_col[c].r, sdl_col[c].g, sdl_col[c].b);
 	
-	if (c < 256 && sdl_dib->format->BitsPerPixel > 8)
-		c = SDL_MapRGB(sdl_dib->format, sdl_col[c].r, sdl_col[c].g, sdl_col[c].b);
-	
-	SDL_FillRect(sdl_dib, &rect, c);
+	SDL_FillRect(sdl_dib, &rect, col);
 }
 
 /* 領域コピー */
@@ -285,9 +273,8 @@ void sdl_copyArea(int sx, int sy, int w, int h, int dx, int dy) {
 	if (sx == dx && sy == dy)
 		return;
 
-	SDL_Rect r_src, r_dst;
-	setRect(r_src, sx, sy, w, h);
-	setRect(r_dst, dx, dy, w, h);
+	SDL_Rect r_src = {sx, sy, w, h};
+	SDL_Rect r_dst = {dx, dy, w, h};
 
 	SDL_Rect intersect;
 	if (SDL_IntersectRect(&r_src, &r_dst, &intersect)) {
@@ -301,33 +288,28 @@ void sdl_copyArea(int sx, int sy, int w, int h, int dx, int dy) {
 /*
  * dib に指定のパレット sp を抜いてコピー
  */
-void sdl_copyAreaSP(int sx, int sy, int w, int h, int dx, int dy, int sp) {
-	SDL_Rect r_src, r_dst;
-
+void sdl_copyAreaSP(int sx, int sy, int w, int h, int dx, int dy, BYTE sp) {
 	sdl_pal_check();
-	
-	if (sdl_dib->format->BitsPerPixel > 8 && sp < 256) {
-		sp = SDL_MapRGB(sdl_dib->format,
+
+	Uint32 col = sp;
+	if (sdl_dib->format->BitsPerPixel > 8) {
+		col = SDL_MapRGB(sdl_dib->format,
 				sdl_col[sp].r & 0xf8,
 				sdl_col[sp].g & 0xfc,
 				sdl_col[sp].b & 0xf8);
 	}
 	
-	SDL_SetColorKey(sdl_dib, SDL_TRUE, sp);
+	SDL_SetColorKey(sdl_dib, SDL_TRUE, col);
 	
-	setRect(r_src, sx, sy, w, h);
-	setRect(r_dst, dx, dy, w, h);
+	SDL_Rect r_src = {sx, sy, w, h};
+	SDL_Rect r_dst = {dx, dy, w, h};
 	
 	SDL_BlitSurface(sdl_dib, &r_src, sdl_dib, &r_dst);
 	SDL_SetColorKey(sdl_dib, SDL_FALSE, 0);
 }
 
 void sdl_drawImage8_fromData(cgdata *cg, int dx, int dy, int w, int h) {
-	SDL_Surface *s;
-	SDL_Rect r_src, r_dst;
-	
-	s = SDL_AllocSurface(SDL_SWSURFACE, w, h, 8, 0, 0, 0, 0);
-
+	SDL_Surface *s = SDL_CreateRGBSurface(0, w, h, 8, 0, 0, 0, 0);
 	SDL_LockSurface(s);
 
 #if 0  /* for broken cg */
@@ -374,95 +356,53 @@ void sdl_drawImage8_fromData(cgdata *cg, int dx, int dy, int w, int h) {
 		SDL_SetColorKey(s, SDL_TRUE, cg->spritecolor);
 	}
 	
-	setRect(r_src,  0,  0, w, h);
-	setRect(r_dst, dx, dy, w, h);
+	SDL_Rect r_src = { 0,  0, w, h};
+	SDL_Rect r_dst = {dx, dy, w, h};
 	
 	SDL_BlitSurface(s, &r_src, sdl_dib, &r_dst);
 	SDL_FreeSurface(s);
 }
 
 /* 直線描画 */
-void sdl_drawLine(int x1, int y1, int x2, int y2, unsigned long cl) {
-
+void sdl_drawLine(int x1, int y1, int x2, int y2, BYTE c) {
 	sdl_pal_check();
 	
-	if (sdl_dib->format->BitsPerPixel > 8 && cl < 256) {
-		cl = SDL_MapRGB(sdl_dib->format,
-				sdl_col[cl].r, sdl_col[cl].g, sdl_col[cl].b);
-	}
-	
-	SDL_LockSurface(sdl_dib);
-
-	image_drawLine(sdl_dibinfo, x1, y1, x2, y2, cl);
-	
-	SDL_UnlockSurface(sdl_dib);
-	
+	SDL_Renderer *renderer = SDL_CreateSoftwareRenderer(sdl_dib);
+	SDL_SetRenderDrawColor(renderer, sdl_col[c].r, sdl_col[c].g, sdl_col[c].b, SDL_ALPHA_OPAQUE);
+	SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+	SDL_DestroyRenderer(renderer);
 }
 
-static agsurface_t* surface2com(SDL_Surface *src) {
-	agsurface_t *dst = malloc(sizeof(agsurface_t));
-	
-	dst->depth           = src->format->BitsPerPixel;
-	dst->bytes_per_pixel = src->format->BytesPerPixel;
-	dst->bytes_per_line  = src->pitch;
-	dst->pixel   = src->pixels;
-	dst->width  = src->w;
-	dst->height = src->h;
-	
-	return dst;
+#define TYPE ___BYTE
+#include "flood.h"
+#undef TYPE
+#define TYPE ___WORD
+#include "flood.h"
+#undef TYPE
+#define TYPE ___DWORD
+#include "flood.h"
+#undef TYPE
+
+SDL_Rect sdl_floodFill(int x, int y, int c) {
+	Uint32 col = (sdl_dib->format->BitsPerPixel == 8) ? c
+		: SDL_MapRGB(sdl_dib->format, sdl_col[c].r, sdl_col[c].g, sdl_col[c].b);
+
+	switch (sdl_dib->format->BytesPerPixel) {
+	case 1:
+		return sdl_floodFill___BYTE(x, y, col);
+	case 2:
+		return sdl_floodFill___WORD(x, y, col);
+	case 4:
+		return sdl_floodFill___DWORD(x, y, col);
+	default:
+		WARNING("sdl_floodFill: unsupported DIB format\n");
+		return (SDL_Rect){};
+	}
 }
 
-static SDL_Surface *com2surface(agsurface_t *src) {
-	SDL_Surface *s;
-	int y;
-	BYTE *sp, *dp;
-	
-	s = SDL_AllocSurface(SDL_SWSURFACE, src->width, src->height, src->depth, 0, 0, 0, 0);
-	
-	SDL_LockSurface(s);
-	
-	sp = s->pixels;
-	dp = src->pixel;
-	
-	for (y = 0; y < src->height; y++) {
-		memcpy(sp, dp, src->width);
-		sp += s->pitch;
-		dp += src->bytes_per_line;
-	}
-	
-	SDL_UnlockSurface(s);
-	return s;
-}
-
-static SDL_Surface *com2alphasurface(agsurface_t *src, int cl) {
-	SDL_Surface *s;
-	int x,y;
-	BYTE *sp, *dp;
-	SDL_Rect r_src;
-	
-	s = SDL_CreateRGBSurfaceWithFormat(0, src->width, src->height, 32, SDL_PIXELFORMAT_ARGB8888);
-	
-	setRect(r_src, 0, 0, src->width, src->height);
-	SDL_FillRect(s, &r_src, RGB_PIX24(sdl_col[cl].r, sdl_col[cl].g, sdl_col[cl].b));
-
-	SDL_LockSurface(s);
-	
-	for (y = 0; y < src->height; y++) {
-		sp = src->pixel + y * src->bytes_per_line;
-		dp = s->pixels + y * s->pitch;
-#ifndef WORDS_BIGENDIAN
-		dp += s->format->BytesPerPixel -1;
-#endif
-		
-		for (x = 0; x < src->width; x++) {
-			*dp = *sp;
-			sp++;
-			dp += s->format->BytesPerPixel;
-		}
-	}
-	
-	SDL_UnlockSurface(s);
-	return s;
+SDL_Surface *com2surface(agsurface_t *s) {
+	return SDL_CreateRGBSurfaceFrom(
+		s->pixel, s->width, s->height, s->depth, s->bytes_per_line, 0, 0, 0, 0);
 }
 
 int sdl_nearest_color(int r, int g, int b) {
@@ -480,84 +420,16 @@ int sdl_nearest_color(int r, int g, int b) {
 	return col;
 }
 
-static void sdl_drawAntiAlias_8bpp(int dstx, int dsty, agsurface_t *src, unsigned long col) {
-	int x, y;
-	SDL_LockSurface(sdl_dib);
-
-	Uint8 cache[256*7];
-	memset(cache, 0, 256);
-
-	for (y = 0; y < src->height; y++) {
-		BYTE* sp = src->pixel + y * src->bytes_per_line;
-		BYTE* dp = sdl_dib->pixels + (dsty + y) * sdl_dib->pitch + dstx;
-		for (x = 0; x < src->width; x++) {
-			int alpha = *sp >> 5;
-			if (alpha == 0) {
-				// Transparent, do nothing
-			} else if (alpha == 7) {
-				*dp = col;
-			} else if (cache[*dp] & 1 << alpha) {
-				*dp = cache[alpha << 8 | *dp];
-			} else {
-				cache[*dp] |= 1 << alpha;
-				int c = sdl_nearest_color(
-					(sdl_col[col].r * alpha + sdl_col[*dp].r * (7 - alpha)) / 7,
-					(sdl_col[col].g * alpha + sdl_col[*dp].g * (7 - alpha)) / 7,
-					(sdl_col[col].b * alpha + sdl_col[*dp].b * (7 - alpha)) / 7);
-				cache[alpha << 8 | *dp] = c;
-				*dp = c;
-			}
-			sp++;
-			dp++;
-		}
-	}
-
-	SDL_UnlockSurface(sdl_dib);
-}
-
-int sdl_drawString(int x, int y, const char *str_utf8, unsigned long col) {
-	int w;
-
+SDL_Rect sdl_drawString(int x, int y, const char *str_utf8, BYTE col) {
 	sdl_pal_check();
-	
-	if (sdl_font->self_drawable()) {
-		w = sdl_font->draw_glyph(x, y, str_utf8, col);
-	} else {
-		agsurface_t *glyph = sdl_font->get_glyph(str_utf8);
-		SDL_Rect r_src, r_dst;
-		
-		if (glyph == NULL) return 0;
-		setRect(r_src, 0, 0, glyph->width, glyph->height);
-		setRect(r_dst, x, y, glyph->width, glyph->height);
-		if (!sdl_font->antialiase_on) {
-			int i;
-			SDL_Surface *src = com2surface(glyph);
-			for (i = 1; i < 256; i++) { 
-				memcpy(src->format->palette->colors + i, &sdl_col[col],
-				       sizeof(SDL_Color));
-			}
-			SDL_SetColorKey(src, SDL_TRUE, 0);
-			SDL_BlitSurface(src, &r_src, sdl_dib, &r_dst);
-			SDL_FreeSurface(src);
-		} else if (sdl_dib->format->BitsPerPixel == 8) {
-			sdl_drawAntiAlias_8bpp(x, y, glyph, col);
-		} else {
-			SDL_Surface *src = com2alphasurface(glyph, col);
-
-			SDL_BlitSurface(src, &r_src, sdl_dib, &r_dst);
-			SDL_FreeSurface(src);
-		}
-		w = glyph->width;
-	}
-	
-	return w;
+	return font_draw_glyph(x, y, str_utf8, col);
 }
 
 void sdl_Mosaic(int sx, int sy, int w, int h, int dx, int dy, int slice) {
 	
 	SDL_LockSurface(sdl_dib);
 
-	image_Mosaic(sdl_dibinfo, sx, sy, w, h, dx, dy, slice); 
+	image_Mosaic(sdl_dib, sx, sy, w, h, dx, dy, slice);
 
 	SDL_UnlockSurface(sdl_dib);
 }
@@ -593,12 +465,10 @@ static void setWhiteness(SDL_Surface *s, int val) {
 }
 
 static void fader_in(int n) {
-	static agsurface_t *work, *disp;
-	
+	static SDL_Surface *s_fader;
+
 	if (n == 0) {
-		SDL_Rect r_src, r_dst;
-		
-		s_fader = SDL_AllocSurface(sdl_dib->flags, sdl_display->w, sdl_display->h,
+		s_fader = SDL_CreateRGBSurface(0, sdl_display->w, sdl_display->h,
 					   sdl_display->format->BitsPerPixel, 0, 0, 0, 0);
 		
 		if (sdl_display->format->BitsPerPixel == 8) {
@@ -606,26 +476,21 @@ static void fader_in(int n) {
 			       sdl_display->format->palette->colors,
 			       sizeof(SDL_Color) * 256);
 		}
-		setRect(r_src, view_x, view_y, view_w, view_h);
-		setRect(r_dst, winoffset_x, winoffset_y, view_w, view_h);
+		SDL_Rect r_src = {view_x, view_y, view_w, view_h};
+		SDL_Rect r_dst = {winoffset_x, winoffset_y, view_w, view_h};
 		SDL_BlitSurface(sdl_dib, &r_src, s_fader, &r_dst);
-		
-		work = surface2com(s_fader);
-		disp = surface2com(sdl_display);
 	}
 	
 	if (n == 255) {
 		SDL_FreeSurface(s_fader);
 		sdl_updateAll();
-		free(work);
-		free(disp);
 		return;
 	}
 	
 	SDL_LockSurface(s_fader);
 	SDL_LockSurface(sdl_display);
 	
-	image_fadeIn(work, disp, n / 16);
+	image_fadeIn(s_fader, sdl_display, n / 16);
 	
 	SDL_UnlockSurface(sdl_display);
 	SDL_UnlockSurface(s_fader);
@@ -633,21 +498,14 @@ static void fader_in(int n) {
 }
 
 static void fader_out(int n,Uint32 c) {
-	static agsurface_t *disp;
-
-	if (n == 0) {
-		disp = surface2com(sdl_display);
-	}
-	
 	if (n == 255) {
 		SDL_FillRect(sdl_display, NULL, c);
-		free(disp);
 		return;
 	}
 	
 	SDL_LockSurface(sdl_display);
 	
-	image_fadeOut(disp, (255 - n) / 16, c);
+	image_fadeOut(sdl_display, (255 - n) / 16, c);
 	
 	SDL_UnlockSurface(sdl_display);
 	
@@ -655,8 +513,7 @@ static void fader_out(int n,Uint32 c) {
 }
 
 static __inline void sdl_fade_blit(void) {
-	SDL_Rect r_dst;
-	setRect(r_dst, winoffset_x, winoffset_y, view_w, view_h);
+	SDL_Rect r_dst = {winoffset_x, winoffset_y, view_w, view_h};
 
 	SDL_BlitSurface(sdl_dib, &sdl_view, sdl_display, &r_dst);
 	sdl_dirty = TRUE;
@@ -701,26 +558,18 @@ void sdl_whiteOut(int step) {
 /*
  * 指定範囲にパレット col を rate の割合で重ねる CK1
  */
-void sdl_wrapColor(int sx, int sy, int w, int h, int cl, int rate) {
-	SDL_Surface *s;
-	SDL_Rect r_src,r_dst;
+void sdl_wrapColor(int sx, int sy, int w, int h, BYTE c, int rate) {
+	SDL_Surface *s = SDL_CreateRGBSurface(0, w, h, sdl_dib->format->BitsPerPixel, 0, 0, 0, 0);
+	assert(s->format->BitsPerPixel > 8);
 
-	s = SDL_AllocSurface(SDL_SWSURFACE, w, h,
-			     sdl_dib->format->BitsPerPixel, 0, 0, 0, 0);
-	
-	if (s->format->BitsPerPixel == 8) {
-		memcpy(s->format->palette->colors, sdl_dib->format->palette->colors,
-		       sizeof(SDL_Color)*256);
-	} else {
-		cl = (cl < 256) ? SDL_MapRGB(sdl_dib->format, sdl_col[cl].r, sdl_col[cl].g, sdl_col[cl].b) : cl;
-	}
-	
-	setRect(r_src, 0, 0, w, h);
-	SDL_FillRect(s, &r_src, cl);
+	Uint32 col = SDL_MapRGB(sdl_dib->format, sdl_col[c].r, sdl_col[c].g, sdl_col[c].b);
+
+	SDL_Rect r_src = {0, 0, w, h};
+	SDL_FillRect(s, &r_src, col);
 	
 	SDL_SetSurfaceBlendMode(s, SDL_BLENDMODE_BLEND);
 	SDL_SetSurfaceAlphaMod(s, rate);
-	setRect(r_dst, sx, sy, w, h);
+	SDL_Rect r_dst = {sx, sy, w, h};
 	SDL_BlitSurface(s, &r_src, sdl_dib, &r_dst);
 	SDL_FreeSurface(s);
 }

@@ -125,6 +125,8 @@ void commandLE() {
 		sysVar[0] = save_load_str_with_file(fname_utf8, _var, num);
 		break;
 	default:
+		_var = getCaliValue();
+		num  = getCaliValue();
 		WARNING("Unknown LE command %d\n", type);
 		break;
 	}
@@ -164,11 +166,7 @@ void commandLL() {
 			num = dfile->size / sizeof(WORD);
 		}
 		for (i = 0; i < num; i++) {
-#ifdef WORDS_BIGENDIAN
-			*var = swap16(*data); var++; data++;
-#else
-			*var = *data; var++; data++;
-#endif
+			var[i] = SDL_SwapLE16(data[i]);
 		}
 		break;
 		
@@ -205,9 +203,23 @@ void commandLHG() {
 	// ＣＤのデータをＨＤＤへ登録／削除する
 	int p1 = sys_getc();
 	int no = getCaliValue();
-	/* X版では全てをHDDに置くのでサポートしない */
-	
-	sysVar[0] = 255;
+
+	// HACK: Remember the last registered number so that LHG3 called immediately
+	// after LHG1 can return 1. This prevents "HDD is full or CD is not inserted"
+	// error message in Diabolique.
+	static int last_registered = -1;
+	switch (p1) {
+	case 1:  // register
+		last_registered = no;
+		break;
+	case 2:  // unregister
+		last_registered = -1;
+		break;
+	case 3:  // query
+		// Unconditionally returning 1 breaks Atlach-Nacha.
+		sysVar[0] = (no == last_registered) ? 1 : 0;
+		break;
+	}
 	DEBUG_COMMAND("LHG %d,%d:\n",p1,no);
 }
 

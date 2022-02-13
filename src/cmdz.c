@@ -27,6 +27,7 @@
 
 #include "portab.h"
 #include "xsystem35.h"
+#include "sdl_core.h"
 #include "ags.h"
 #include "scenario.h"
 #include "counter.h"
@@ -288,7 +289,7 @@ void commandZT20() {
 	/* ??? wait? */
 	int p1  = getCaliValue();
 	
-	sysVar[0] = sys_keywait(p1, FALSE);
+	sysVar[0] = sys_keywait(p1, KEYWAIT_NONCANCELABLE);
 	DEBUG_COMMAND("ZT20 %d:\n",p1);
 }
 
@@ -296,7 +297,7 @@ void commandZT21() {
 	/* ??? wait? */
 	int p1  = getCaliValue();
 	
-	sysVar[0] =  sys_keywait(p1, TRUE);
+	sysVar[0] = sys_keywait(p1, KEYWAIT_CANCELABLE);
 	
 	DEBUG_COMMAND("ZT21 %d:\n",p1);
 }
@@ -429,7 +430,7 @@ void commandZZ10() {
 	/* スクリーンモードを取得する */
 	int *var = getCaliVariable();
 
-	*var = nact->sys_fullscreen_on ? 1 : 0;
+	*var = sdl_isFullscreen() ? 1 : 0;
 	
 	DEBUG_COMMAND("ZZ10 %d:\n",*var);
 }

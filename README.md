@@ -53,7 +53,7 @@ Prebuilt binaries for Windows and Android can be downloaded from the [Releases](
 ## Build
 ### Linux (Debian / Ubuntu)
 
-    $ sudo apt install build-essential cmake libgtk2.0-dev libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev
+    $ sudo apt install build-essential cmake libgtk-3-dev libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev
     $ mkdir -p out/debug
     $ cd out/debug
     $ cmake -DCMAKE_BUILD_TYPE=Debug ../../
@@ -63,7 +63,7 @@ Prebuilt binaries for Windows and Android can be downloaded from the [Releases](
 
 [Homebrew](https://brew.sh/index_ja) is needed.
 
-    $ brew install cmake pkg-config sdl2 sdl2_mixer freetype libjpeg
+    $ brew install cmake pkg-config sdl2 sdl2_mixer sdl2_ttf libjpeg
     $ mkdir -p out/debug
     $ cd out/debug
     $ cmake -DCMAKE_BUILD_TYPE=Debug ../../

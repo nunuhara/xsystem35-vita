@@ -29,10 +29,12 @@
 
 #include "portab.h"
 #include "windowframe.h"
+#include "sdl_core.h"
 #include "xsystem35.h"
 #include "message.h"
 #include "variable.h"
 #include "input.h"
+#include "msgskip.h"
 #include "ags.h"
 #include "nact.h"
 #include "texthook.h"
@@ -109,7 +111,6 @@ void msg_setStringDecorationType(int type) {
 }
 
 void msg_putMessage(const char *m) {
-	int         w;
 	MyRectangle adj;
 	
 	if (nextLineIsAfterKaigyou) {
@@ -131,38 +132,38 @@ void msg_putMessage(const char *m) {
 	switch(msgDecorateType) {
 	case 0:
 	default:
-		adj.x = 0; adj.y = 0; adj.width = 0; adj.height = 0;
+		adj.x = 0; adj.y = 0; adj.w = 0; adj.h = 0;
 		break;
 	case 1:
 		ags_drawString(msgcur.x, msgcur.y +1, m, msgDecorateColor);
-		adj.x = 0; adj.y = 0; adj.width = 0; adj.height = 1;
+		adj.x = 0; adj.y = 0; adj.w = 0; adj.h = 1;
 		break;
 	case 2:
 		ags_drawString(msgcur.x +1, msgcur.y, m, msgDecorateColor);
-		adj.x = 0; adj.y = 0; adj.width = 1; adj.height = 0;
+		adj.x = 0; adj.y = 0; adj.w = 1; adj.h = 0;
 		break;
 	case 3:
 		ags_drawString(msgcur.x +1, msgcur.y +1, m, msgDecorateColor);
-		adj.x = 0; adj.y = 0; adj.width = 1; adj.height = 1;
+		adj.x = 0; adj.y = 0; adj.w = 1; adj.h = 1;
 		break;
 	case 4:
 		ags_drawString(msgcur.x -1, msgcur.y, m, msgDecorateColor);
 		ags_drawString(msgcur.x +1, msgcur.y, m, msgDecorateColor);
 		ags_drawString(msgcur.x, msgcur.y -1, m, msgDecorateColor);
 		ags_drawString(msgcur.x, msgcur.y +1, m, msgDecorateColor);
-		adj.x = -1; adj.y = -1; adj.width = 2; adj.height = 2;
+		adj.x = -1; adj.y = -1; adj.w = 2; adj.h = 2;
 		break;
 	case 6:
 		ags_drawString(msgcur.x +1, msgcur.y, m, msg.MsgFontColor);
-		adj.x = 0; adj.y = 0; adj.width = 1; adj.height = 0;
+		adj.x = 0; adj.y = 0; adj.w = 1; adj.h = 0;
 		break;
 	case 7:
 		ags_drawString(msgcur.x, msgcur.y +1, m, msg.MsgFontColor);
-		adj.x = 0; adj.y = 0; adj.width = 0; adj.height = 1;
+		adj.x = 0; adj.y = 0; adj.w = 0; adj.h = 1;
 		break;
 	case 8:
 		ags_drawString(msgcur.x +1, msgcur.y +1, m, msg.MsgFontColor);
-		adj.x = 0; adj.y = 0; adj.width = 1; adj.height = 1;
+		adj.x = 0; adj.y = 0; adj.w = 1; adj.h = 1;
 		break;
 	case 10:
 		ags_drawString(msgcur.x -1, msgcur.y   , m, msgDecorateColor);
@@ -170,22 +171,25 @@ void msg_putMessage(const char *m) {
 		ags_drawString(msgcur.x   , msgcur.y -1, m, msgDecorateColor);
 		ags_drawString(msgcur.x   , msgcur.y +1, m, msgDecorateColor);
 		ags_drawString(msgcur.x +2, msgcur.y +2, m, msgDecorateColor);
-		adj.x = -1; adj.y = -1; adj.width = 3; adj.height = 3;
+		adj.x = -1; adj.y = -1; adj.w = 3; adj.h = 3;
 		break;
 	}
 	
-	w = ags_drawString(msgcur.x, msgcur.y, m, msg.MsgFontColor);
+	MyRectangle drawn = ags_drawString(msgcur.x, msgcur.y, m, msg.MsgFontColor);
+	msgcur.x += drawn.w;
+	drawn.x += adj.x;
+	drawn.y += adj.y;
+	drawn.w += adj.w;
+	drawn.h += adj.h;
 
-	if (nact->messagewait_enable && !nact->messagewait_cancelled) {
+	if (nact->messagewait_enable && !nact->messagewait_cancelled && !msgskip_isSkipping()) {
 		int x;
-		for (x = 0; x < w + adj.width; x+=16) {
-			ags_updateArea(msgcur.x + adj.x + x, msgcur.y + adj.y,
-				       16, msg.MsgFontSize + adj.height);
+		for (x = 0; x < drawn.w; x+=16) {
+			ags_updateArea(drawn.x + x, drawn.y, 16, drawn.h);
 			if (nact->messagewait_cancel) {
 				if (sys_getInputInfo()) {
 					nact->messagewait_cancelled = TRUE;
-					ags_updateArea(msgcur.x + adj.x, msgcur.y + adj.y,
-						       w + adj.width, msg.MsgFontSize + adj.height);
+					ags_updateArea(drawn.x, drawn.y, drawn.w, drawn.h);
 					break;
 				}
 				sdl_sleep(nact->messagewait_time * 10);
@@ -193,10 +197,8 @@ void msg_putMessage(const char *m) {
 			nact->callback();
 		}
 	} else {
-		ags_updateArea(msgcur.x + adj.x, msgcur.y + adj.y,
-			       w + adj.width, msg.MsgFontSize + adj.height);
+		ags_updateArea(drawn.x, drawn.y, drawn.w, drawn.h);
 	}
-	msgcur.x += w;
 }
 
 void msg_nextLine() {
@@ -325,18 +327,15 @@ void msg_getMessageLocation(MyPoint *loc) {
 }
 
 void msg_hitAnyKey() {
-	int w;
 	const char *prompt[CHARACTER_ENCODING_MAX + 1] = {
 		[SHIFT_JIS] = "\x81\xa5",
 		[UTF8] = "▼",
 	};
 	
-	w = ags_drawString(msg.win->x + msg.win->width - msg.MsgFontSize,
-			   msg.win->y + msg.win->height - msg.MsgFontSize,
-			   prompt[nact->encoding], msg.HitAnyKeyMsgColor);
-	ags_updateArea(msg.win->x + msg.win->width  - msg.MsgFontSize,
-		       msg.win->y + msg.win->height - msg.MsgFontSize,
-		       w, msg.MsgFontSize);
+	MyRectangle r = ags_drawString(msg.win->x + msg.win->width - msg.MsgFontSize,
+								   msg.win->y + msg.win->height - msg.MsgFontSize,
+								   prompt[nact->encoding], msg.HitAnyKeyMsgColor);
+	ags_updateArea(r.x, r.y, r.w, r.h);
 }
 
 static void drawLineFrame(Bcom_WindowInfo *i) {

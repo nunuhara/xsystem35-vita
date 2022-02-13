@@ -27,6 +27,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #include "portab.h"
 #include "xsystem35.h"
@@ -36,17 +39,14 @@
 #include "counter.h"
 #include "utfsjis.h"
 #include "input.h"
-#include "flood.h"
 #include "font.h"
 #include "cursor.h"
 #include "image.h"
 
 #define check_param    ags_check_param
 #define check_param_xy ags_check_param_xy
-#define intersection   ags_intersection
 
 static void    initPal(Palette256 *sys_pal);
-static boolean intersects(MyRectangle *r1, MyRectangle *r2);
 
 static Palette256 pal_256;
 static boolean need_update = TRUE;
@@ -64,28 +64,6 @@ static void initPal(Palette256 *pal) {
 	pal->red[255] = 255; pal->green[255] = 255; pal->blue[255] = 255;
 	sdl_setPalette(pal, 0, 256);
 	nact->sys_pal_changed = TRUE;
-}
-
-boolean ags_regionContains(MyRectangle *r, int x, int y) {
-	return x >= r->x && x < r->x + r->width && y >= r->y && y < r->y + r->height;
-}
-
-static boolean intersects(MyRectangle *r1, MyRectangle *r2) {
-        return !((r2->x + r2->width  <= r1->x) ||
-                 (r2->y + r2->height <= r1->y) ||
-                 (r2->x >= r1->x + r1->width)  ||
-                 (r2->y >= r1->y + r1->height));
-}
-
-void ags_intersection(MyRectangle *r1, MyRectangle *r2, MyRectangle *rst) {
-        int x1 = max(r1->x, r2->x);
-        int x2 = min(r1->x + r1->width, r2->x + r2->width);
-        int y1 = max(r1->y, r2->y);
-        int y2 = min(r1->y + r1->height, r2->y + r2->height);
-        rst->x = x1;
-	rst->y = y1;
-	rst->width  = x2 - x1;
-	rst->height = y2 - y1;
 }
 
 boolean ags_check_param(int *x, int *y, int *w, int *h) {
@@ -134,14 +112,12 @@ void ags_init() {
 	nact->sys_world_depth =  SYS35_DEFAULT_DEPTH;
 	nact->sys_view_area.x = 0;
 	nact->sys_view_area.y = 0;
-	nact->sys_view_area.width  = SYS35_DEFAULT_WIDTH;
-	nact->sys_view_area.height = SYS35_DEFAULT_HEIGHT;
+	nact->sys_view_area.w = SYS35_DEFAULT_WIDTH;
+	nact->sys_view_area.h = SYS35_DEFAULT_HEIGHT;
 	
 	sdl_Initilize();
-	
-	font_init(nact->fontdev);
-	sdl_setFontDevice(nact->ags.font);
-	
+	font_init();
+
 	initPal(&pal_256);
 	cg_init();
 }
@@ -178,8 +154,8 @@ void ags_setViewArea(int x, int y, int width, int height) {
 	nact->sys_view_area.x = x;
 	nact->sys_view_area.y = y;
 	
-	nact->sys_view_area.width  = width;
-	nact->sys_view_area.height = height;
+	nact->sys_view_area.w = width;
+	nact->sys_view_area.h = height;
 	sdl_setWindowSize(x, y, width, height);
 }
 
@@ -206,8 +182,8 @@ void ags_getDIBInfo(DispInfo *info) {
 
 void ags_getViewAreaInfo(DispInfo *info) {
 	sdl_getWindowInfo(info);
-	info->width  = nact->sys_view_area.width;
-	info->height = nact->sys_view_area.height;
+	info->width  = nact->sys_view_area.w;
+	info->height = nact->sys_view_area.h;
 }
 
 void ags_getWindowInfo(DispInfo *info) {
@@ -219,35 +195,31 @@ void ags_setExposeSwitch(boolean bool) {
 }
 
 void ags_updateArea(int x, int y, int w, int h) {
-	MyRectangle r, update;
-	MyPoint p;
-	
-	if (fade_outed) return;
-	
-	if (need_update) {
-		r.x = x; r.y = y; r.width = w; r.height = h;
-		if (intersects(&nact->sys_view_area, &r)) {
-			intersection(&nact->sys_view_area, &r, &update);
-			p.x = update.x - nact->sys_view_area.x;
-			p.y = update.y - nact->sys_view_area.y;
-			sdl_updateArea(&update, &p);
-		}
+	if (fade_outed || !need_update)
+		return;
+
+	MyRectangle r = {x, y, w, h}, update;
+	if (SDL_IntersectRect(&nact->sys_view_area, &r, &update)) {
+		MyPoint p = {
+			update.x - nact->sys_view_area.x,
+			update.y - nact->sys_view_area.y
+		};
+		sdl_updateArea(&update, &p);
 	}
 }
 
 void ags_updateFull() {
+	if (fade_outed || !need_update)
+		return;
+
+	MyRectangle r = {
+		nact->sys_view_area.x,
+		nact->sys_view_area.y,
+		min(nact->sys_view_area.w, nact->sys_world_size.width),
+		min(nact->sys_view_area.h, nact->sys_world_size.height)
+	};
 	MyPoint p = {0, 0};
-	MyRectangle r;
-	
-	if (fade_outed) return;
-	
-	if (need_update) {
-		r.x = nact->sys_view_area.x;
-		r.y = nact->sys_view_area.y;
-		r.width  = min(nact->sys_view_area.width,  nact->sys_world_size.width);
-		r.height = min(nact->sys_view_area.height, nact->sys_world_size.height);
-		sdl_updateArea(&r, &p);
-	}
+	sdl_updateArea(&r, &p);
 }
 
 void ags_setPalettes(Palette256 *src_pal, int src, int dst, int cnt) {
@@ -385,23 +357,35 @@ void ags_delRegion(void *region) {
 	sdl_delRegion(region);
 }
 
-int ags_drawString(int x, int y, const char *src, int col) {
-	int w;
-	
-	if (!check_param_xy(&x, &y)) return 0;
+MyRectangle ags_drawString(int x, int y, const char *src, int col) {
+	if (!check_param_xy(&x, &y)) return (MyRectangle){};
 	
 	char *utf8 = toUTF8(src);
-	w = sdl_drawString(x, y, utf8, col);
+	SDL_Rect r = sdl_drawString(x, y, utf8, col);
 	free(utf8);
 
-	return w;
+	return (MyRectangle){r.x, r.y, r.w, r.h};
 }
 
 agsurface_t *ags_drawStringToSurface(const char *str) {
+	static SDL_Surface *fs;
+	static agsurface_t result;
+	if (fs) {
+		SDL_FreeSurface(fs);
+		fs = NULL;
+	}
+
 	char *utf8 = toUTF8(str);
-	agsurface_t *sf = nact->ags.font->get_glyph(utf8);
+	fs = font_get_glyph(utf8);
 	free(utf8);
-	return sf;
+
+	result.depth = fs->format->BitsPerPixel;
+	result.bytes_per_pixel = fs->format->BytesPerPixel;
+	result.bytes_per_line = fs->pitch;
+	result.pixel = fs->pixels;
+	result.width = fs->w;
+	result.height = fs->h;
+	return &result;
 }
 
 void ags_drawCg8bit(cgdata *cg, int x, int y) {
@@ -477,73 +461,11 @@ void ags_copyArea_whiteLevel(int sx, int sy, int w, int h, int dx, int dy, int l
 	sdl_copyAreaSP16_whiteLevel(sx, sy, w, h, dx, dy, lv);
 }
 
+MyRectangle ags_floodFill(int x, int y, int col) {
+	if (!check_param_xy(&x, &y))
+		return (MyRectangle){};
 
-/*******************************************************
- *
- * special thanks to tajiri@wizard.elec.waseda.ac.jpさん
- *
- *******************************************************/
-/* CP コマンドの実装用. 同じ色で出来た領域を指定された
-   色で塗り変える。
-*/
-static int floodColor;
-static int changeColor;
-static agsurface_t *__img;
-/*この操作のあとにアップデートする領域
-  (updatePointTop と updatePointEndで囲まれた長方形)
- */
-static MyPoint updatePointTop, updatePointEnd;
-
-static int pixcel(int x, int y) {
-	int pixval;
-	
-	if ((y >= 0) && (y <= __img->height) && (x >= 0) && (x <= __img->width)) {
-		BYTE *dst = (BYTE *)(__img->pixel + y * __img->bytes_per_line + x);
-		pixval = *dst;
-		
-		if (pixval == floodColor){
-		/* if(pixval <= floodColor+2 && pixval >= floodColor-2){ */
-			*dst = changeColor;
-			if (x < updatePointTop.x) updatePointTop.x = x;
-			if (x > updatePointEnd.x) updatePointEnd.x = x;
-			if (y < updatePointTop.y) updatePointTop.y = y;
-			if (y > updatePointEnd.y) updatePointEnd.y = y;
-			return TRUE;
-		}
-	}
-	return FALSE;
-}
-
-MyRectangle* ags_imageFlood(int x, int y, int c) {
-	if (nact->sys_world_depth != 8) return NULL;
-	
-	if (!check_param_xy(&x, &y)) return NULL;
-
-{
-	agsurface_t *dib = nact->ags.dib;
-	BYTE *dst = GETOFFSET_PIXEL(dib, x, y);
-	static MyRectangle rec;
-	__img = dib;
-	updatePointTop.x = x;
-	updatePointTop.y = y;
-	updatePointEnd.x = x;
-	updatePointEnd.y = y;
-	/*直線はぬりなおしたりしない！！*/
-	if ((x <= 0 || (*(dst - 1) != *(dst))) && ((x >= dib->width) || (*(dst + 1) != *dst)))
-		return NULL;
-	if ((y <= 0 || (*(dst - dib->bytes_per_line) != *(dst)))
-	    && ((y >= dib->height) || (*(dst + dib->bytes_per_line) != *dst)))
-		return NULL;
-	floodColor = *dst;
-	
-	changeColor = c;
-	flood(x, y, pixcel);
-	rec.x = updatePointTop.x;
-	rec.y = updatePointTop.y;
-	rec.width =  updatePointEnd.x - updatePointTop.x + 1;
-	rec.height = updatePointEnd.y - updatePointTop.y + 1;
-	return &rec;
-}
+	return sdl_floodFill(x, y, col);
 }
 
 void ags_copyFromAlpha(int sx, int sy, int w, int h, int dx, int dy, ALPHA_DIB_COPY_TYPE flg) {
@@ -608,12 +530,11 @@ void ags_alpha_getPixel(int x, int y, int *pic) {
 }
 
 void ags_alpha_setPixel(int x, int y, int w, int h, BYTE *b) {
-	int savex, savey, savew, saveh, offset;
+	int savex, savey, savew, offset;
 	
 	savex = x;
 	savey = y;
 	savew = w;
-	saveh = h;
 	
 	if (!check_param(&x, &y, &w, &h)) return;	
 	
@@ -653,7 +574,7 @@ void ags_fader(ags_faderinfo_t *i) {
 		mstime = lefttime / leftstep; /* 1stepに許される時間 */
 		if (mstime > cnt2) {
 			/* wait をいれる余裕がある場合 */
-			key = sys_keywait(mstime - cnt2, i->cancel);
+			key = sys_keywait(mstime - cnt2, i->cancel ? KEYWAIT_CANCELABLE : KEYWAIT_NONCANCELABLE);
 			step++;
 		} else if (mstime > 0) {
 			/* wait をいれる余裕が無い場合 */
@@ -751,7 +672,7 @@ void ags_whiteOut(int rate, boolean flag) {
 void ags_setFont(int type, int size) {
 	nact->ags.font_type = type;
 	nact->ags.font_size = size;
-	nact->ags.font->sel_font(type, size);
+	font_select(type, size);
 }
 
 void ags_setCursorType(int type) {
@@ -803,19 +724,15 @@ void ags_setCursorLocation(int x, int y, boolean is_dibgeo) {
 	}
 }
 
+EMSCRIPTEN_KEEPALIVE
 void ags_setAntialiasedStringMode(boolean on) {
 	if (!nact->noantialias) {
-		nact->ags.font->antialiase_on = on;
+		font_set_antialias(on);
 	}
 }
 
 boolean ags_getAntialiasedStringMode() {
-	return nact->ags.font->antialiase_on;
-}
-
-void ags_fullscreen(boolean on) {
-	nact->sys_fullscreen_on = on;
-	sdl_FullScreen(on);
+	return font_get_antialias();
 }
 
 void ags_copyArea_shadow_withrate(int sx, int sy, int w, int h, int dx, int dy, int lv) {
@@ -849,12 +766,6 @@ void ags_zoom(int x, int y, int w, int h) {
 
 agsurface_t *ags_getDIB() {
 	return nact->ags.dib;
-}
-
-void ags_fillRectangleNeg(int x, int y, int w, int h, int col) {
-	if (!check_param(&x, &y, &w, &h)) return;
-	
-	image_fillRectangleNeg(nact->ags.dib, x, y, w, h, col);
 }
 
 void ags_autorepeat(boolean bool) {

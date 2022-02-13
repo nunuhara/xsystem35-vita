@@ -31,26 +31,26 @@
 
 #include "portab.h"
 #include "system.h"
-#include "counter.h"
 #include "nact.h"
+#include "sdl_core.h"
 #include "sdl_private.h"
 #include "key.h"
 #include "menu.h"
 #include "input.h"
-#include "joystick.h"
+#include "msgskip.h"
 #include "sdl_keytable.h"
-#include "texthook.h"
 
 static void sdl_getEvent(void);
 static void keyEventProsess(SDL_KeyboardEvent *e, boolean bool);
-static int  check_button(void);
-static void send_agsevent(int type, int code);
 
 /* pointer の状態 */
 int mousex, mousey, mouseb;
 boolean RawKeyInfo[256];
+
+#if HAVE_SDLJOY
 /* SDL Joystick */
 static int joyinfo=0;
+#endif
 
 /*
  * Translate touch screen coordinates to logical coordinates.
@@ -133,7 +133,6 @@ static void sdl_getEvent(void) {
 	static int cmd_count_of_prev_input = -1;
 	SDL_Event e;
 	boolean m2b = FALSE, msg_skip = FALSE;
-	int i;
 	boolean had_input = false;
 
 	while (SDL_PollEvent(&e)) {
@@ -168,6 +167,11 @@ static void sdl_getEvent(void) {
 				break;
 			}
 			break;
+#ifdef _WIN32
+		case SDL_SYSWMEVENT:
+			win_menu_onsyswmevent(e.syswm.msg);
+			break;
+#endif
 		case SDL_APP_DIDENTERFOREGROUND:
 			sdl_dirty = TRUE;
 			break;
@@ -176,13 +180,14 @@ static void sdl_getEvent(void) {
 			break;
 		case SDL_KEYUP:
 			keyEventProsess(&e.key, FALSE);
-			if (e.key.keysym.sym == SDLK_F1) msg_skip = TRUE;
-#ifndef __EMSCRIPTEN__
-			if (e.key.keysym.sym == SDLK_F4) {
-				sdl_fs_on = !sdl_fs_on;
-				SDL_SetWindowFullscreen(sdl_window, sdl_fs_on ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+			switch (e.key.keysym.sym) {
+			case SDLK_F1:
+				msg_skip = TRUE;
+				break;
+			case SDLK_F4:
+				sdl_setFullscreen(!sdl_fs_on);
+				break;
 			}
-#endif
 			break;
 		case SDL_MOUSEMOTION:
 			if (e.motion.which == SDL_TOUCH_MOUSEID)
@@ -246,8 +251,8 @@ static void sdl_getEvent(void) {
 			if (abs(e.jaxis.value) < 0x4000) {
 				joyinfo &= e.jaxis.axis == 0 ? ~0xc : ~3;
 			} else {
-				i = (e.jaxis.axis == 0 ? 2 : 0) + 
-					(e.jaxis.value > 0 ? 1 : 0);
+				int i = (e.jaxis.axis == 0 ? 2 : 0) +
+						(e.jaxis.value > 0 ? 1 : 0);
 				joyinfo |= 1 << i;
 			}
 			break;
@@ -258,7 +263,7 @@ static void sdl_getEvent(void) {
 		case SDL_JOYBUTTONDOWN:
 		case SDL_JOYBUTTONUP:
 			if (e.jbutton.button < 4) {
-				i = 1 << (e.jbutton.button+4);
+				int i = 1 << (e.jbutton.button+4);
 				if (e.jbutton.state == SDL_PRESSED)
 					joyinfo |= i;
 				else
@@ -285,27 +290,7 @@ static void sdl_getEvent(void) {
 		menu_open();
 	}
 	
-	if (msg_skip) set_skipMode(!get_skipMode());
-}
-
-int sdl_keywait(int msec, boolean cancel) {
-	int key=0, n;
-	int end = msec == INT_MAX ? INT_MAX : get_high_counter(SYSTEMCOUNTER_MSEC) + msec;
-	texthook_keywait();
-	
-	while ((n = end - get_high_counter(SYSTEMCOUNTER_MSEC)) > 0) {
-		if (n <= 16)
-			sdl_sleep(n);
-		else
-			sdl_wait_vsync();
-		nact->callback();
-		sdl_getEvent();
-		key = check_button() | sdl_getKeyInfo() | joy_getinfo();
-		nact->wait_vsync = FALSE;  // We just waited!
-		if (cancel && key) break;
-	}
-	
-	return key;
+	if (msg_skip) msgskip_activate(!msgskip_isActivated());
 }
 
 /* キー情報の取得 */
@@ -332,15 +317,6 @@ int sdl_getKeyInfo() {
 	return rt;
 }
 
-static int check_button(void) {
-	int m1, m2;
-	
-	m1 = mouseb & (1 << 1) ? SYS35KEY_RET : 0;
-	m2 = mouseb & (1 << 3) ? SYS35KEY_SPC : 0;
-	
-	return m1 | m2;
-}
-
 int sdl_getMouseInfo(MyPoint *p) {
 	sdl_getEvent();
 	
@@ -355,12 +331,17 @@ int sdl_getMouseInfo(MyPoint *p) {
 		p->x = mousex - winoffset_x;
 		p->y = mousey - winoffset_y;
 	}
-	return check_button();
+
+	int m1 = mouseb & (1 << 1) ? SYS35KEY_RET : 0;
+	int m2 = mouseb & (1 << 3) ? SYS35KEY_SPC : 0;
+	return m1 | m2;
 }
 
+int sdl_getJoyInfo(void) {
 #ifdef HAVE_SDLJOY
-int sdl_getjoyinfo(void) {
 	sdl_getEvent();
 	return joyinfo;
-}
+#else
+	return 0;
 #endif
+}

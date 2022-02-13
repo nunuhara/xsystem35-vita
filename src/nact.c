@@ -31,11 +31,13 @@
 #include "portab.h"
 #include "scenario.h"
 #include "xsystem35.h"
+#include "sdl_core.h"
 #include "ags.h"
 #include "counter.h"
 #include "nact.h"
 #include "selection.h"
 #include "message.h"
+#include "msgskip.h"
 #include "input.h"
 #include "menu.h"
 #include "hankaku.h"
@@ -128,6 +130,7 @@ void sys_addMsg(const char *str) {
 		if (nact->msgout) {
 			nact->msgout(msg);
 		}
+		msgskip_onMessage();
 	}
 	
 	if (msg != str) {
@@ -163,7 +166,6 @@ static int checkMessage() {
 
 void nact_main() {
 	reset_counter_high(SYSTEMCOUNTER_MSEC, 1, 0);
-	int cnt = 0;
 
 	nact->frame_count = 0;
 	nact->cmd_count = 0;

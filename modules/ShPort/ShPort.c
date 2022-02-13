@@ -36,6 +36,8 @@
 #include "xsystem35.h"
 #include "modules.h"
 #include "sdl_core.h"
+#include "sdl_private.h"
+#include "menu.h"
 
 // キー変換テーブル
 #define KEYMAP_MAX 8
@@ -44,24 +46,48 @@ static BYTE *keymap[KEYMAP_MAX];
 static void OutputMessageBox(void) { /* 0 */
 	int p1 = getCaliValue();
 	int p2 = getCaliValue();
-	int p3 = getCaliValue();
-	int p4 = getCaliValue();
-	int p5 = getCaliValue();
-	int p6 = getCaliValue();
+	int title = getCaliValue();
+	int msg = getCaliValue();
+	int *res = getCaliVariable();
+	int ISys3xSystem = getCaliValue();
 
-	DEBUG_COMMAND_YET("ShPort.OutputMessageBox: %d,%d,%d,%d,%d,%d:\n", p1, p2, p3, p3, p4, p5, p6);
+	char *title_utf8 = toUTF8(svar_get(title));
+	char *msg_utf8 = toUTF8(svar_get(msg));
+
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, title_utf8, msg_utf8, sdl_window);
+
+	free(title_utf8);
+	free(msg_utf8);
+
+	DEBUG_COMMAND("ShPort.OutputMessageBox: %d,%d,%d,%d,%p,%d:\n", p1, p2, title, msg, res, ISys3xSystem);
 }
 
 static void InputListNum(void) { /* 1 */
-	int p1 = getCaliValue();
-	int p2 = getCaliValue();
-	int p3 = getCaliValue();
-	int p4 = getCaliValue();
-	int p5 = getCaliValue();
-	int p6 = getCaliValue();
-	int p7 = getCaliValue();
+	int flags = getCaliValue();
+	int title = getCaliValue();
+	int *val = getCaliVariable();
+	int minval = getCaliValue();
+	int maxval = getCaliValue();
+	int *res = getCaliVariable();
+	int ISys3xSystem = getCaliValue();
 
-	DEBUG_COMMAND_YET("ShPortInputListNum: %d,%d,%d,%d,%d,%d,%d:\n", p1, p2, p3, p3, p4, p5, p6, p7);
+	INPUTNUM_PARAM ni_param = {
+		.def = minval,
+		.min = minval,
+		.max = maxval,
+		.title = toUTF8(svar_get(title)),
+	};
+
+	menu_inputnumber(&ni_param);
+	if (ni_param.value < 0) {
+		*res = 0;
+	} else {
+		*val = (WORD)ni_param.value;
+		*res = 1;
+	}
+
+	free(ni_param.title);
+	DEBUG_COMMAND("ShPort.InputListNum: %d,%d,%p,%d,%d,%p,%d:\n", flags, title, val, minval, maxval, res, ISys3xSystem);
 }
 
 /**

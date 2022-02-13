@@ -1,7 +1,5 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
-add_subdirectory(lib)
-
 add_library(modules STATIC
   modules.c
   AliceLogo/AliceLogo.c
@@ -61,6 +59,31 @@ add_library(modules STATIC
   dDemo/dDemo.c
   eDemo/eDemo.c
   eeDemo/eeDemo.c
+  lib/alk.c
+  lib/drawtext.c
+  lib/graph.c
+  lib/list.c
+  lib/surface.c
+  lib/cg.c
+  lib/graph_expandcolor_blend.c
+  lib/graph_fillrect.c
+  lib/graph_fillrect_amap.c
+  lib/graph_fillrect_acolor.c
+  lib/graph_rect.c
+  lib/graph_copy.c
+  lib/graph_copy_amap.c
+  lib/graph_copy_bright.c
+  lib/graph_copy_whiteout.c
+  lib/graph_blend_amap.c
+  lib/graph_blend_screen.c
+  lib/graph_saturadd_amap.c
+  lib/graph_draw_amap.c
+  lib/graph_stretch.c
+  lib/graph_cg.c
+  lib/graph_buller.c
+  lib/gre_blend_useamap.c
+  lib/gre_blend.c
+  lib/gre_blend_screen.c
   nDEMO/nDEMO.c
   nDEMOE/nDEMOE.c
   oDEMO/oDEMO.c
@@ -68,10 +91,23 @@ add_library(modules STATIC
   tDemo/tDemo.c
   )
 
-target_include_directories(modules PUBLIC .)
+target_include_directories(modules PUBLIC . lib)
+
+if (NOT ANDROID AND NOT EMSCRIPTEN)
+  add_executable(modules_tests lib/list_test.c)
+  target_link_libraries(modules_tests PRIVATE modules)
+  add_test(NAME modules_tests COMMAND modules_tests)
+endif()
 
 target_compile_options(modules PRIVATE -Wno-pointer-sign)
-target_link_libraries(modules PRIVATE graph alk drawtext list)
+
+if (EMSCRIPTEN)
+  set(LIBS
+    "SHELL:-s USE_LIBJPEG=1"
+    "SHELL:-s USE_SDL=2")
+  target_compile_options(modules PRIVATE ${LIBS})
+  target_link_options(modules PRIVATE ${LIBS})
+endif()
 
 if (SDL2MIXER_FOUND)
   if (ANDROID)
@@ -88,5 +124,7 @@ if (HAVE_JPEG)
     NightDemonDemo/ndd.c
     NightDemonDemo/jpeg2surface.c
     )
-  target_link_libraries(modules PRIVATE JPEG::JPEG)
+  if (NOT EMSCRIPTEN)
+    target_link_libraries(modules PRIVATE JPEG::JPEG)
+  endif()
 endif()

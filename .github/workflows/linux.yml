@@ -15,13 +15,13 @@ jobs:
     - name: Install Deps
       run: |
         sudo apt update
-        sudo apt install libgtk2.0-dev libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev
+        sudo apt install libgtk-3-dev libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev
 
     - name: Build
       run: |
         mkdir -p out/${{ matrix.build-type }}
         cd out/${{ matrix.build-type }}
-        cmake -DENABLE_X11=NO -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} ../../
+        cmake -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} ../../
         make
 
     - name: Test

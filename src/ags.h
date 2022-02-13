@@ -30,8 +30,6 @@
 #include "cg.h"
 #include "graphics.h"
 
-struct _FONT;
-
 /* マウスカーソルの種類 */
 #define CURSOR_ARROW     1
 #define CURSOR_CROSS     2
@@ -64,7 +62,7 @@ typedef enum {
 struct agsurface {
 	int width;   /* width of surface  */
 	int height;  /* height of surface */
-	int depth;   /* depth of surface, 8/15/16/24/32 is available */
+	int depth;   /* depth of surface, 8/16/24/32 is available */
 	
 	int bytes_per_line;   /* bytes per line  */
 	int bytes_per_pixel;  /* bytes per pixel */
@@ -74,8 +72,11 @@ struct agsurface {
 };
 typedef struct agsurface agsurface_t;
 
+// for agsurface_t
 #define GETOFFSET_PIXEL(suf, x, y) ((suf)->pixel + (y) * (suf)->bytes_per_line + (x) * (suf)->bytes_per_pixel)
 #define GETOFFSET_ALPHA(suf, x, y) ((suf)->alpha + (y) * (suf)->width + (x))
+// for SDL_surface
+#define PIXEL_AT(suf, x, y) ((suf)->pixels + (y) * (suf)->pitch + (x) * (suf)->format->BytesPerPixel)
 
 struct _agsevent {
 	int type;
@@ -129,8 +130,6 @@ struct _ags {
 
 	boolean fullscree_is_on;    /* if full-screen mode then true */
 	
-
-	struct _FONT *font;         /* font device */
 	int font_type;              /* active font type */
 	int font_size;              /* active font size */
 	agsurface_t *dib;           /* main surface */
@@ -151,11 +150,8 @@ extern void ags_setWindowTitle(const char *str);
 extern void ags_getDIBInfo(DispInfo *info);
 extern void ags_getWindowInfo(DispInfo *info);
 extern void ags_getViewAreaInfo(DispInfo *info);
-extern boolean ags_regionContains(MyRectangle *r, int x, int y);
-extern void    ags_fullscreen(boolean on);
 extern boolean ags_check_param(int *x, int *y, int *w, int *h);
 extern boolean ags_check_param_xy(int *x, int *y);
-extern void    ags_intersection(MyRectangle *r1, MyRectangle *r2, MyRectangle *rst);
 extern agsurface_t *ags_getDIB();
 
 /* 画面更新 */
@@ -171,7 +167,6 @@ extern void ags_setPaletteToSystem(int src, int cnt);
 /* 描画関係 */
 extern void ags_drawRectangle(int x, int y, int w, int h, int col);
 extern void ags_fillRectangle(int x, int y, int w, int h, int col);
-extern void ags_fillRectangleNeg(int x, int y, int w, int h, int col);
 extern void ags_drawLine(int x0, int y0, int x1, int y1, int col);
 extern void ags_copyArea(int sx, int sy, int w, int h, int dx, int dy);
 extern void ags_scaledCopyArea(int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, int mirror_sw);
@@ -189,7 +184,7 @@ extern void ags_putRegion(void *region, int x, int y);
 extern void ags_copyRegion(void *region, int sx, int sy, int w,int h,int dx,int dy);
 extern void ags_delRegion(void *region);
 
-extern int  ags_drawString(int x, int y, const char *src, int col);
+extern MyRectangle ags_drawString(int x, int y, const char *src, int col);
 extern void ags_drawCg8bit(cgdata *cg, int x, int y); 
 extern void ags_drawCg16bit(cgdata *cg, int x, int y); 
 
@@ -198,7 +193,7 @@ extern void ags_copyArea_transparent(int sx, int sy, int w, int h, int dx, int d
 extern void ags_copyArea_alphaLevel(int sx, int sy, int w, int h, int dx, int dy, int lv);
 extern void ags_copyArea_alphaBlend(int sx, int sy, int w, int h, int dx, int dy, int lv);
 extern void ags_copyArea_whiteLevel(int sx, int sy, int w, int h, int dx, int dy, int lv);
-extern MyRectangle* ags_imageFlood(int x, int y, int c);
+extern MyRectangle ags_floodFill(int x, int y, int col);
 extern void ags_eCopyArea(int sx, int sy, int w, int h, int dx, int dy, int type, int opt, boolean flg, int spCol);
 
 /* alpha channel 操作 */
@@ -219,11 +214,6 @@ extern void ags_whiteOut(int rate, boolean flg);
 extern void ags_fader_callback();
 
 /* フォント関連 */
-typedef enum {
-	FONT_FT2,
-	FONT_SDLTTF
-} fontdev_t;
-
 enum FontType {
 	FONT_GOTHIC,
 	FONT_MINCHO,
@@ -244,102 +234,30 @@ extern boolean ags_getAntialiasedStringMode();
 extern void    ags_fader(ags_faderinfo_t *);
 extern void    ags_autorepeat(boolean bool);
 
-#define RGB_RMASK15 0x7c00
-#define RGB_GMASK15 0x03e0
-#define RGB_BMASK15 0x001f
-#define RGB_RMASK16 0xf800
-#define RGB_GMASK16 0x07e0
-#define RGB_BMASK16 0x001f
-#define RGB_RMASK24 0x00ff0000
-#define RGB_GMASK24 0x0000ff00
-#define RGB_BMASK24 0x000000ff
+#define RMASK16 0xf800
+#define GMASK16 0x07e0
+#define BMASK16 0x001f
+#define RMASK24 0x00ff0000
+#define GMASK24 0x0000ff00
+#define BMASK24 0x000000ff
 
-#define BGR_RMASK15 0x001f
-#define BGR_GMASK15 0x03e0
-#define BGR_BMASK15 0x7c00
-#define BGR_RMASK16 0x001f
-#define BGR_GMASK16 0x07e0
-#define BGR_BMASK16 0xf800
-#define BGR_RMASK24 0x000000ff
-#define BGR_GMASK24 0x0000ff00
-#define BGR_BMASK24 0x00ff0000
+#define PIXR16(pic) (BYTE)(((pic) & RMASK16) >> 8)
+#define PIXG16(pic) (BYTE)(((pic) & GMASK16) >> 3)
+#define PIXB16(pic) (BYTE)(((pic) & BMASK16) << 3)
+#define PIX16(r,g,b) (WORD)((((r) & 0xf8) << 8) | (((g) & 0xfc) << 3) | ((b       ) >> 3))
 
-#define RGB_PIXR15(pic) (BYTE)(((pic) & RGB_RMASK15) >> 7)
-#define RGB_PIXG15(pic) (BYTE)(((pic) & RGB_GMASK15) >> 2)
-#define RGB_PIXB15(pic) (BYTE)(((pic) & RGB_BMASK15) << 3)
-#define BGR_PIXR15(pic) (BYTE)(((pic) & BGR_RMASK15) << 3)
-#define BGR_PIXG15(pic) (BYTE)(((pic) & BGR_GMASK15) >> 2)
-#define BGR_PIXB15(pic) (BYTE)(((pic) & BGR_BMASK15) >> 7)
-#define RGB_PIX15(r,g,b) (WORD)((((r) & 0xf8) << 7) | (((g) & 0xf8) << 2) | ((b       ) >> 3))
-#define BGR_PIX15(r,g,b) (WORD)((((r)       ) >> 3) | (((g) & 0xf8) << 2) | ((b & 0xf8) << 7))
-
-#define RGB_PIXR16(pic) (BYTE)(((pic) & RGB_RMASK16) >> 8)
-#define RGB_PIXG16(pic) (BYTE)(((pic) & RGB_GMASK16) >> 3)
-#define RGB_PIXB16(pic) (BYTE)(((pic) & RGB_BMASK16) << 3)
-#define BGR_PIXR16(pic) (BYTE)(((pic) & BGR_RMASK16) << 3)
-#define BGR_PIXG16(pic) (BYTE)(((pic) & BGR_GMASK16) >> 3)
-#define BGR_PIXB16(pic) (BYTE)(((pic) & BGR_BMASK16) >> 8)
-#define RGB_PIX16(r,g,b) (WORD)((((r) & 0xf8) << 8) | (((g) & 0xfc) << 3) | ((b       ) >> 3))
-#define BGR_PIX16(r,g,b) (WORD)((((r)       ) >> 3) | (((g) & 0xfc) << 3) | ((b & 0xf8) << 8))
-
-#define RGB_PIXR24(pic) (BYTE)(((pic) & RGB_RMASK24) >> 16)
-#define RGB_PIXG24(pic) (BYTE)(((pic) & RGB_GMASK24) >>  8)
-#define RGB_PIXB24(pic) (BYTE)(((pic) & RGB_BMASK24)      )
-#define BGR_PIXR24(pic) (BYTE)(((pic) & BGR_RMASK24)      )
-#define BGR_PIXG24(pic) (BYTE)(((pic) & BGR_GMASK24) >>  8)
-#define BGR_PIXB24(pic) (BYTE)(((pic) & BGR_BMASK24) >> 16)
-#define RGB_PIX24(r,g,b) (DWORD)((((r) << 16) | ((g) << 8) | (b)      ))
-#define BGR_PIX24(r,g,b) (DWORD)((((r)      ) | ((g) << 8) | (b) << 16))
-
-#ifdef RGB_ORDER
-#define PIXR15 RGB_PIXR15
-#define PIXG15 RGB_PIXG15
-#define PIXB15 RGB_PIXB15
-#define PIXR16 RGB_PIXR16
-#define PIXG16 RGB_PIXG16
-#define PIXB16 RGB_PIXB16
-#define PIXR24 RGB_PIXR24
-#define PIXG24 RGB_PIXG24
-#define PIXB24 RGB_PIXB24
-#define PIX15  RGB_PIX15
-#define PIX16  RGB_PIX16
-#define PIX24  RGB_PIX24
-#else
-#define PIXR15 BGR_PIXR15
-#define PIXG15 BGR_PIXG15
-#define PIXB15 BGR_PIXB15
-#define PIXR16 BGR_PIXR16
-#define PIXG16 BGR_PIXG16
-#define PIXB16 BGR_PIXB16
-#define PIXR24 BGR_PIXR24
-#define PIXG24 BGR_PIXG24
-#define PIXB24 BGR_PIXB24
-#define PIX15  BGR_PIX15
-#define PIX16  BGR_PIX16
-#define PIX24  BGR_PIX24
-#endif
-
-#define ALPHABLEND15(f, b, a)  (PIX15((((PIXR15((f)) - PIXR15((b))) * (a)) >> 8) + PIXR15((b)),\
-                                      (((PIXG15((f)) - PIXG15((b))) * (a)) >> 8) + PIXG15((b)),\
-                                      (((PIXB15((f)) - PIXB15((b))) * (a)) >> 8) + PIXB15((b))))
-
-#define ALPHALEVEL15(p, lv) (PIX15(((PIXR15(p) * (lv)) >> 8),\
-                                   ((PIXG15(p) * (lv)) >> 8),\
-                                   ((PIXB15(p) * (lv)) >> 8)))
-
-#define WHITELEVEL15(p, lv) ALPHABLEND15(0x7fff, p, lv)
+#define PIXR24(pic) (BYTE)(((pic) & RMASK24) >> 16)
+#define PIXG24(pic) (BYTE)(((pic) & GMASK24) >>  8)
+#define PIXB24(pic) (BYTE)(((pic) & BMASK24)      )
+#define PIX24(r,g,b) (DWORD)((((r) << 16) | ((g) << 8) | (b)      ))
 
 #define ALPHABLEND16(f, b, a)  (PIX16((((PIXR16((f)) - PIXR16((b))) * (a)) >> 8)+ PIXR16((b)),\
                                       (((PIXG16((f)) - PIXG16((b))) * (a)) >> 8)+ PIXG16((b)),\
                                       (((PIXB16((f)) - PIXB16((b))) * (a)) >> 8)+ PIXB16((b))))
 
 #define ALPHALEVEL16(p, lv) PIX16(((PIXR16(p) * (lv)) >> 8),\
-                                  ((PIXG16(p) * (lv)) >> 8),\
-                                  ((PIXB16(p) * (lv)) >> 8))
-
-#define RGB_ALPHALEVEL16(p, lv) PIX16(((RGB_PIXR16(p) * (lv)) >> 8),\
-				      ((RGB_PIXG16(p) * (lv)) >> 8),\
-				      ((RGB_PIXB16(p) * (lv)) >> 8))
+								  ((PIXG16(p) * (lv)) >> 8),\
+								  ((PIXB16(p) * (lv)) >> 8))
 
 #define WHITELEVEL16(p, lv) ALPHABLEND16(0xffff,p,lv)
 
@@ -353,7 +271,6 @@ extern void    ags_autorepeat(boolean bool);
 
 #define WHITELEVEL24(p, lv) ALPHABLEND24(0xffffffff, p, lv)
 
-#define SUTURADD15(pa, pb) PIX15(min(255,PIXR15(pa)+PIXR15(pb)), min(255, PIXG15(pa)+PIXG15(pb)), min(255, PIXB15(pa)+PIXB15(pb)));
 #define SUTURADD16(pa, pb) PIX16(min(255,PIXR16(pa)+PIXR16(pb)), min(255, PIXG16(pa)+PIXG16(pb)), min(255, PIXB16(pa)+PIXB16(pb)));
 //#define SUTURADD16(pa, pb) PIX16(min(255,(int)(PIXR16(pa))+(int)(PIXR16(pb))), min(255, (int)(PIXG16(pa))+(int)(PIXG16(pb))), min(255, (int)(PIXB16(pa))+(int)(PIXB16(pb))));
 #define SUTURADD24(pa, pb) PIX24(min(255,PIXR24(pa)+PIXR24(pb)), min(255, PIXG24(pa)+PIXG24(pb)), min(255, PIXB24(pa)+PIXB24(pb)));

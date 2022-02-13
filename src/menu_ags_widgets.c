@@ -101,37 +101,37 @@ static void menu_pack(struct widget *w)
 	// pack children
 	for (int i = 0; i < menu->nr_entries; i++) {
 		widget_pack(menu->entries[i]);
-		max_w = max(max_w, menu->entries[i]->geo.width);
-		height += menu->entries[i]->geo.height;
+		max_w = max(max_w, menu->entries[i]->geo.w);
+		height += menu->entries[i]->geo.h;
 	}
 
 	// set menu dimensions
 	ags_getViewAreaInfo(&d);
-	w->geo.width = max_w + 4;
-	w->geo.height = height + 4;
-	w->geo.x = d.width/2 - w->geo.width/2;
-	w->geo.y = d.height/2 - w->geo.height/2;
+	w->geo.w = max_w + 4;
+	w->geo.h = height + 4;
+	w->geo.x = d.width/2 - w->geo.w/2;
+	w->geo.y = d.height/2 - w->geo.h/2;
 
 	// set children (x,y) coordinates
 	for (int i = 0, y = w->geo.y + 2; i < menu->nr_entries; i++) {
 		menu->entries[i]->geo.x = w->geo.x + 2;
 		menu->entries[i]->geo.y = y;
-		menu->entries[i]->geo.width = max_w;
-		y += menu->entries[i]->geo.height;
+		menu->entries[i]->geo.w = max_w;
+		y += menu->entries[i]->geo.h;
 	}
 }
 
 static void draw_frameborder(MyRectangle r, int frame_color, int bg_color)
 {
-	ags_drawRectangle(r.x - 8, r.y - 8, r.width + 16, r.height + 16, frame_color);
-	ags_drawRectangle(r.x - 7, r.y - 7, r.width + 14, r.height + 14, frame_color);
-	ags_drawRectangle(r.x - 6, r.y - 6, r.width + 12, r.height + 12, frame_color);
-	ags_drawRectangle(r.x - 5, r.y - 5, r.width + 10, r.height + 10, bg_color);
-	ags_drawRectangle(r.x - 4, r.y - 4, r.width +  8, r.height +  8, bg_color);
-	ags_drawRectangle(r.x - 3, r.y - 3, r.width +  6, r.height +  6, frame_color);
-	ags_drawRectangle(r.x - 2, r.y - 2, r.width +  4, r.height +  4, bg_color);
-	ags_drawRectangle(r.x - 1, r.y - 1, r.width +  2, r.height +  2, bg_color);
-	ags_fillRectangle(r.x,     r.y,     r.width,      r.height,      bg_color);
+	ags_drawRectangle(r.x - 8, r.y - 8, r.w + 16, r.h + 16, frame_color);
+	ags_drawRectangle(r.x - 7, r.y - 7, r.w + 14, r.h + 14, frame_color);
+	ags_drawRectangle(r.x - 6, r.y - 6, r.w + 12, r.h + 12, frame_color);
+	ags_drawRectangle(r.x - 5, r.y - 5, r.w + 10, r.h + 10, bg_color);
+	ags_drawRectangle(r.x - 4, r.y - 4, r.w +  8, r.h +  8, bg_color);
+	ags_drawRectangle(r.x - 3, r.y - 3, r.w +  6, r.h +  6, frame_color);
+	ags_drawRectangle(r.x - 2, r.y - 2, r.w +  4, r.h +  4, bg_color);
+	ags_drawRectangle(r.x - 1, r.y - 1, r.w +  2, r.h +  2, bg_color);
+	ags_fillRectangle(r.x,     r.y,     r.w,      r.h,      bg_color);
 }
 
 static void menu_draw(struct widget *w)
@@ -145,17 +145,23 @@ static void menu_draw(struct widget *w)
 		widget_draw(m->entries[i]);
 		if (i == m->selection) {
 			MyRectangle *r = &m->entries[i]->geo;
-			ags_drawRectangle(r->x-2, r->y-2, r->width+4, r->height+4, m->fg_color);
-			ags_drawRectangle(r->x-1, r->y-1, r->width+2, r->height+2, m->fg_color);
+			ags_drawRectangle(r->x-2, r->y-2, r->w+4, r->h+4, m->fg_color);
+			ags_drawRectangle(r->x-1, r->y-1, r->w+2, r->h+2, m->fg_color);
 		}
 	}
 }
 
+static boolean region_contains(MyRectangle *r, int x, int y)
+{
+	MyPoint p = {x, y};
+	return SDL_PointInRect(&p, r);
+}
+
 static int menu_entry_at(struct menu *m, int x, int y)
 {
-	if (ags_regionContains(&m->w.geo, x, y)) {
+	if (region_contains(&m->w.geo, x, y)) {
 		for (int i = 0; i < m->nr_entries; i++) {
-			if (ags_regionContains(&m->entries[i]->geo, x, y)) {
+			if (region_contains(&m->entries[i]->geo, x, y)) {
 				return i;
 			}
 		}
@@ -274,23 +280,23 @@ static void msgbox_pack(struct widget *w)
 	btn_w = 0;
 	for (int i = 0; i < box->nr_buttons; i++) {
 		widget_pack(&box->buttons[i]->w);
-		btn_w += box->buttons[i]->w.geo.width + BUTTON_PAD;
-		btn_height = max(btn_height, box->buttons[i]->w.geo.height);
+		btn_w += box->buttons[i]->w.geo.w + BUTTON_PAD;
+		btn_height = max(btn_height, box->buttons[i]->w.geo.h);
 	}
 	max_w = max(max_w, btn_w - BUTTON_PAD);
 
 	ags_getViewAreaInfo(&d);
-	w->geo.width = max_w + 4;
-	w->geo.height = msg_height + btn_height + BUTTON_PAD + 4;
-	w->geo.x = d.width/2 - w->geo.width/2;
-	w->geo.y = d.height/2 - w->geo.height/2;
+	w->geo.w = max_w + 4;
+	w->geo.h = msg_height + btn_height + BUTTON_PAD + 4;
+	w->geo.x = d.width/2 - w->geo.w/2;
+	w->geo.y = d.height/2 - w->geo.h/2;
 
 	// set button (x,y) coordinates
-	int x = w->geo.x + (w->geo.width/2 - btn_w/2);
+	int x = w->geo.x + (w->geo.w/2 - btn_w/2);
 	for (int i = 0; i < box->nr_buttons; i++) {
 		box->buttons[i]->w.geo.x = x;
 		box->buttons[i]->w.geo.y = w->geo.y + msg_height + BUTTON_PAD + 2;
-		x += box->buttons[i]->w.geo.width + BUTTON_PAD;
+		x += box->buttons[i]->w.geo.w + BUTTON_PAD;
 	}
 }
 
@@ -304,7 +310,7 @@ static void msgbox_draw(struct widget *w)
 	ags_setFont(FONT_GOTHIC, box->font_size);
 	for (int i = 0; i < box->nr_lines; i++) {
 		int y = w->geo.y + 2 + i*box->font_size;
-		int x = w->geo.x + (w->geo.width/2 - (strlen(box->lines[i]) * box->font_size/2)/2);
+		int x = w->geo.x + (w->geo.w/2 - (strlen(box->lines[i]) * box->font_size/2)/2);
 		ags_drawString(x, y, box->lines[i], box->fg_color);
 	}
 
@@ -313,18 +319,18 @@ static void msgbox_draw(struct widget *w)
 		struct widget *b = &box->buttons[i]->w;
 		MyRectangle *r = &box->buttons[i]->w.geo;
 		widget_draw(b);
-		ags_drawRectangle(r->x-2, r->y-2, r->width+4, r->height+4, box->fg_color);
+		ags_drawRectangle(r->x-2, r->y-2, r->w+4, r->h+4, box->fg_color);
 		if (i == box->selection) {
-			ags_drawRectangle(r->x-1, r->y-1, r->width+2, r->height+2, box->fg_color);
+			ags_drawRectangle(r->x-1, r->y-1, r->w+2, r->h+2, box->fg_color);
 		}
 	}
 }
 
 static int button_at(struct msgbox *box, int x, int y)
 {
-	if (ags_regionContains(&box->w.geo, x, y)) {
+	if (region_contains(&box->w.geo, x, y)) {
 		for (int i = 0; i < box->nr_buttons; i++) {
-			if (ags_regionContains(&box->buttons[i]->w.geo, x, y)) {
+			if (region_contains(&box->buttons[i]->w.geo, x, y)) {
 				return i;
 			}
 		}
@@ -435,8 +441,8 @@ void msgbox_add_button(struct msgbox *box, struct label *button)
 static void label_pack(struct widget *w)
 {
 	struct label *label = (struct label*)w;
-	w->geo.width = strlen(label->text) * (label->font_size/2);
-	w->geo.height = label->font_size;
+	w->geo.w = strlen(label->text) * (label->font_size/2);
+	w->geo.h = label->font_size;
 }
 
 static void label_draw(struct widget *w)
@@ -463,6 +469,7 @@ struct label *make_label(const char *msg, void (*activate)(struct widget*))
 	label->text = strdup(msg);
 	label->font_size = default_font_size;
 	label->color = default_fg_color;
+	return label;
 }
 
 #define CHAR_OFF "\x81\x9b" // empty circle
@@ -475,8 +482,8 @@ struct label *make_label(const char *msg, void (*activate)(struct widget*))
 static void toggle_pack(struct widget *w)
 {
 	struct toggle *toggle = (struct toggle*)w;
-	w->geo.width = (strlen(toggle->text) + sizeof(CHAR_ON)) * (toggle->font_size/2);
-	w->geo.height = toggle->font_size;
+	w->geo.w = (strlen(toggle->text) + sizeof(CHAR_ON)) * (toggle->font_size/2);
+	w->geo.h = toggle->font_size;
 }
 
 static void toggle_draw(struct widget *w)
@@ -513,4 +520,5 @@ struct toggle *make_toggle(const char *msg, boolean(*toggle_cb)(boolean))
 	toggle->font_size = default_font_size;
 	toggle->color = default_fg_color;
 	toggle->toggle = toggle_cb;
+	return toggle;
 }

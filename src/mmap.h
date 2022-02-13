@@ -29,10 +29,12 @@ typedef struct {
 	void *addr;
 #ifndef _WIN32
 	size_t length;
+	int fd;	 // Emscripten needs fd for mmap kept open.
 #endif
 } mmap_t;
 
 mmap_t *map_file(const char *path);
+mmap_t *map_file_readwrite(const char *path, size_t size);
 int unmap_file(mmap_t *m);
 
 #endif /* __MMAP_H__ */

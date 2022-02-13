@@ -25,32 +25,16 @@
 #include <limits.h>
 #include "config.h"
 #include "input.h"
+#include "sdl_core.h"
+#include "counter.h"
 #include "xsystem35.h"
 #include "message.h"
-#include "joystick.h"
-
-static boolean skipToNextSel = FALSE;
-static boolean skipModeInterruptable = TRUE;
+#include "texthook.h"
+#include "msgskip.h"
 
 static int hak_ignore_mask      = 0xffffffff;
 static int hak_releasewait_mask = (0 << 0) | (0 << 1) | (0 << 2) | (0 << 3) |
                                   (1 << 4) | (0 << 5) | (0 << 6) | (0 << 7) ;
-
-void set_skipMode(boolean bool) {
-	skipToNextSel = bool;
-}
-
-boolean get_skipMode() {
-	return skipToNextSel;
-}
-
-void set_skipMode2(boolean bool) {
-	skipModeInterruptable = bool;
-}
-
-boolean get_skipMode2() {
-	return skipModeInterruptable;
-}
 
 void set_hak_keymode(int key, int mode) {
 	int flg = (1 << key);
@@ -87,25 +71,51 @@ int sys_getKeyInfo() {
 }
 
 int sys_getJoyInfo() {
-	return joy_getinfo();
+	return sdl_getJoyInfo();
 }
 
 int sys_getInputInfo() {
-	int key = sdl_getMouseInfo(NULL) | sdl_getKeyInfo() | joy_getinfo();
+	return sdl_getMouseInfo(NULL) | sdl_getKeyInfo() | sdl_getJoyInfo();
+}
 
-	if (key == SYS35KEY_SPC && skipModeInterruptable) {
-		skipToNextSel = FALSE;		
+int sys_keywait(int msec, unsigned flags) {
+	texthook_keywait();
+
+	if ((flags & KEYWAIT_SKIPPABLE) && msgskip_isSkipping()) {
+		if (msgskip_getFlags() & MSGSKIP_STOP_ON_CLICK) {
+			int key = sys_getInputInfo();
+			if (key)
+				msgskip_activate(FALSE);
+			return key;
+		}
+		return 0;
 	}
 
-	/* 復活 !! */
-        if (key == (SYS35KEY_SPC | SYS35KEY_RET | SYS35KEY_ESC)) sys_exit(0);
-	
- 	return key;
+	int key=0, n;
+	int end = msec == INT_MAX ? INT_MAX : get_high_counter(SYSTEMCOUNTER_MSEC) + msec;
+	while (!((flags & KEYWAIT_SKIPPABLE) && msgskip_isSkipping()) &&
+		   (n = end - get_high_counter(SYSTEMCOUNTER_MSEC)) > 0) {
+		if (n <= 16)
+			sdl_sleep(n);
+		else
+			sdl_wait_vsync();
+		nact->callback();
+		key = sys_getInputInfo();
+		nact->wait_vsync = FALSE;  // We just waited!
+		if ((flags & KEYWAIT_CANCELABLE) && key) break;
+	}
+
+	return key;
 }
 
 void sys_hit_any_key() {
 	int key=0;
-	if (skipToNextSel) return;
+	if (msgskip_isSkipping()) {
+		if (msgskip_getFlags() & MSGSKIP_STOP_ON_CLICK && sys_getInputInfo())
+			msgskip_activate(FALSE);
+		sdl_sleep(30);
+		return;
+	}
 
 	msg_hitAnyKey();
 	
@@ -114,22 +124,20 @@ void sys_hit_any_key() {
 		nact->messagewait_cancelled = FALSE;
 		/* consume the input that cancelled message wait */
 		while(0 == (key & hak_ignore_mask)) {
-			key = sys_keywait(INT_MAX, TRUE);
+			key = sys_keywait(INT_MAX, KEYWAIT_CANCELABLE);
 		}
 		while(key & hak_releasewait_mask) {
-			key = sys_keywait(100, TRUE);
+			key = sys_keywait(100, KEYWAIT_CANCELABLE);
 		}
 	}
 
-	while(0 == (key & hak_ignore_mask)) {
-		key = sys_keywait(INT_MAX, TRUE);
+	while (!msgskip_isSkipping() && 0 == (key & hak_ignore_mask)) {
+		key = sys_keywait(100, KEYWAIT_CANCELABLE | KEYWAIT_SKIPPABLE);
 	}
 	
-	while(key & hak_releasewait_mask) {
-		key = sys_keywait(100, TRUE);
+	while (!msgskip_isSkipping() && (key & hak_releasewait_mask)) {
+		key = sys_keywait(100, KEYWAIT_CANCELABLE | KEYWAIT_SKIPPABLE);
 	}
-	
-	
 }
 
 void sys_key_releasewait(int key, boolean zi_mask_enabled) {
@@ -142,6 +150,6 @@ void sys_key_releasewait(int key, boolean zi_mask_enabled) {
 	}
 	
 	while(key & mask) {
-		key = sys_keywait(50, FALSE);
+		key = sys_keywait(50, KEYWAIT_NONCANCELABLE);
 	}
 }

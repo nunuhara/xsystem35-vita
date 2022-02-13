@@ -53,7 +53,7 @@ static void hidesprite(sprite_t *sp) {
 		sp->blendrate = i;
 		sp_updateme(sp);
 		sp_update_clipped();
-		sys_keywait(10, FALSE);
+		sys_keywait(10, KEYWAIT_NONCANCELABLE);
 	}
 	
 	sp_updateme(sp);
@@ -150,8 +150,8 @@ int sp_keywait(int *vOK, int *vRND, int *vD01, int *vD02, int *vD03, int timeout
 	endtime = timeout < 0 ? INT_MAX : (curtime + timeout * 10);
 	
 	// スプライトキー待ちメイン
-	while (!waitcond(endtime)) {
-		sys_keywait(25, TRUE);
+	while (!waitcond(endtime) && !nact->is_quit) {
+		sys_keywait(25, KEYWAIT_CANCELABLE);
 	}
 	
 	if (sact.waitkey == 0) {

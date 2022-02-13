@@ -3,7 +3,7 @@ add_library(src_lib STATIC
   hankaku.c
   utfsjis.c
   )
-target_compile_options(src_lib PRIVATE -Wno-pointer-sign)
+target_compile_options(src_lib PRIVATE -Wno-pointer-sign -Wall)
 target_include_directories(src_lib PRIVATE .)
 
 if (ANDROID)
@@ -12,7 +12,7 @@ else()
   add_executable(xsystem35)
 endif()
 
-target_compile_options(xsystem35 PRIVATE -Wno-pointer-sign)
+target_compile_options(xsystem35 PRIVATE -Wno-pointer-sign $<$<CONFIG:Debug>:-Wall>)
 target_include_directories(xsystem35 PRIVATE .)
 target_link_libraries(xsystem35 PRIVATE src_lib)
 
@@ -24,9 +24,7 @@ target_sources(xsystem35 PRIVATE
   ${SRC_AUDIO}
   ${SRC_CDROM}
   ${SRC_MIDI}
-  ${SRC_FONT}
-  ${SRC_MENU}
-  ${SRC_JOYSTICK})
+  ${SRC_MENU})
 
 # System3.x commands
 target_sources(xsystem35 PRIVATE
@@ -37,7 +35,7 @@ target_sources(xsystem35 PRIVATE
 # Graphics
 
 target_sources(xsystem35 PRIVATE
-  sdl_video.c sdl_draw.c sdl_event.c sdl_image.c sdl_cursor.c image.c)
+  sdl_video.c sdl_draw.c sdl_event.c sdl_image.c sdl_cursor.c image.c font.c)
 
 # CG
 target_sources(xsystem35 PRIVATE
@@ -60,18 +58,18 @@ target_sources(xsystem35 PRIVATE
 # Scenario
 target_sources(xsystem35 PRIVATE
   cali.c scenario.c variable.c cmd_check.c nact.c
-  selection.c message.c savedata.c s39ain.c texthook.c)
+  selection.c message.c savedata.c s39ain.c texthook.c msgskip.c)
 
 # Graphics
 target_sources(xsystem35 PRIVATE
-  ags.c font.c flood.c cg.c ecopy.c antialiase.c alpha_plane.c cursor.c)
+  ags.c cg.c ecopy.c alpha_plane.c cursor.c)
 
 # Network
 target_sources(xsystem35 PRIVATE
   network.c)
 
 if (WIN32)
-  target_sources(xsystem35 PRIVATE win/dialog.c win/resources.rc)
+  target_sources(xsystem35 PRIVATE win/dialog.c win/resources.rc win/menubar.c)
 endif()
 
 if (EMSCRIPTEN)
@@ -79,8 +77,8 @@ if (EMSCRIPTEN)
   set(LIBS
     "SHELL:-s USE_ZLIB=1"
     "SHELL:-s USE_LIBJPEG=1"
-    "SHELL:-s USE_FREETYPE=1"
-    "SHELL:-s USE_SDL=2")
+    "SHELL:-s USE_SDL=2"
+    "SHELL:-s USE_SDL_TTF=2")
   target_compile_options(xsystem35 PRIVATE ${LIBS})
   target_link_options(xsystem35 PRIVATE ${LIBS})
   target_link_libraries(xsystem35 PRIVATE idbfs.js)
@@ -91,16 +89,17 @@ if (EMSCRIPTEN)
   target_link_options(xsystem35 PRIVATE
     "SHELL:-s ENVIRONMENT=web"
     "SHELL:-s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1"
+    "SHELL:-s ASYNCIFY_REMOVE=\"['SDL_Delay']\""
     "SHELL:-s ASYNCIFY_IMPORTS=\"['muspcm_load_no','muspcm_load_mixlr','muspcm_waitend','wait_vsync','load_mincho_font']\""
+    "SHELL:-s ASYNCIFY_ADD=\"['commands2F60']\""
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     "SHELL:-s NO_EXIT_RUNTIME=1"
-    "SHELL:-s EXPORTED_FUNCTIONS=\"['_main','_ags_setAntialiasedStringMode', '_ald_getdata', '_ald_freedata']\""
     "SHELL:-s EXTRA_EXPORTED_RUNTIME_METHODS=\"['getValue','addRunDependency','removeRunDependency']\"")
 
 elseif (ANDROID)
   target_link_libraries(xsystem35 PRIVATE SDL2 SDL2_ttf SDL2_mixer ${ndk_zlib} ${ndk_log})
 elseif (VITA)
-  target_sources(xsystem35 PRIVATE vita_launcher.c vita_port.c)
+  target_sources(xsystem35 PRIVATE vita_joystick.c vita_launcher.c vita_port.c)
   target_link_libraries(xsystem35 PRIVATE
 	debugnet
 	SDL2
@@ -137,17 +136,12 @@ elseif (VITA)
 else()  # non-emscripten, non-android
   target_link_libraries(xsystem35 PRIVATE m ZLIB::ZLIB)
   target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2)
-  if (GTK2_FOUND)
-    target_link_libraries(xsystem35 PRIVATE GTK2::gtk)
-  endif()
-  if (FREETYPE_FOUND)
-    target_link_libraries(xsystem35 PRIVATE Freetype::Freetype)
+  target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2TTF)
+  if (GTK3_FOUND)
+    target_link_libraries(xsystem35 PRIVATE PkgConfig::GTK3)
   endif()
   if (SDL2MIXER_FOUND)
     target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2MIXER)
-  endif()
-  if (SDL2TTF_FOUND)
-    target_link_libraries(xsystem35 PRIVATE PkgConfig::SDL2TTF)
   endif()
 
   install(TARGETS xsystem35 RUNTIME DESTINATION bin)
@@ -157,7 +151,7 @@ else()  # non-emscripten, non-android
     gameresource_test.c
     hankaku_test.c
     )
-  target_compile_options(src_tests PRIVATE -Wno-pointer-sign)
+  target_compile_options(src_tests PRIVATE -Wno-pointer-sign -Wall)
   target_link_libraries(src_tests PRIVATE src_lib)
   add_test(NAME src_tests COMMAND src_tests)
   configure_file(testdata/test.gr ${CMAKE_CURRENT_BINARY_DIR}/testdata/test.gr COPYONLY)

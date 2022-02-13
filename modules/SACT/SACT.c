@@ -29,6 +29,7 @@
 #include "portab.h"
 #include "system.h"
 #include "input.h"
+#include "msgskip.h"
 #include "xsystem35.h"
 #include "gametitle.h"
 #include "message.h"
@@ -1011,8 +1012,8 @@ static void WaitKeySimple() {
 	sact.waittype = KEYWAIT_SIMPLE;
 	sact.waitkey = -1;
 	
-	while(sact.waitkey == -1) {
-		sys_keywait(25, TRUE);
+	while (sact.waitkey == -1 && !nact->is_quit) {
+		sys_keywait(25, KEYWAIT_CANCELABLE);
 	}
 	
 	sact.waittype = KEYWAIT_NONE;
@@ -1101,7 +1102,7 @@ static void WaitKeySimpleTimeOut() {
 	sact.waittype = KEYWAIT_SIMPLE;
 	sact.waitkey = -1;
 	
-	sys_keywait(wTime * 10, TRUE);
+	sys_keywait(wTime * 10, KEYWAIT_CANCELABLE);
 	if (sact.waitkey == -1) {
 		*vD03 = 1;
 		*vRND = 0;
@@ -1146,7 +1147,7 @@ static void WaitKeySpriteTimeOut() {
 static void QueryMessageSkip() {
 	int *vSkip = getCaliVariable();
 
-	*vSkip = get_skipMode() ? 1 : 0;
+	*vSkip = msgskip_isSkipping() ? 1 : 0;
 	
 	DEBUG_COMMAND_YET("SACT.QueryMessageSkip %p:\n", vSkip);
 }
@@ -1586,8 +1587,8 @@ static void TimerWait() {
 	int wTimerID = getCaliValue();
 	int wCount = getCaliValue();
 
-	while(wCount > stimer_get(wTimerID)) {
-		sys_keywait(10, FALSE);
+	while (wCount > stimer_get(wTimerID) && !nact->is_quit) {
+		sys_keywait(10, KEYWAIT_NONCANCELABLE);
 	}
 	
 	DEBUG_COMMAND("SACT.TimerWait %d,%d:\n", wTimerID, wCount);
@@ -1601,7 +1602,7 @@ static void TimerWait() {
 static void Wait() {
 	int wCount = getCaliValue();
 	
-	sys_keywait(wCount*10, FALSE);
+	sys_keywait(wCount*10, KEYWAIT_NONCANCELABLE);
 	
 	DEBUG_COMMAND_YET("SACT.Wait %d:\n", wCount);
 }

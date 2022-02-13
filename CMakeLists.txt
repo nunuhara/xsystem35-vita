@@ -40,14 +40,6 @@ if (MSYS)
   list(APPEND CMAKE_LIBRARY_PATH $ENV{MINGW_PREFIX}/$ENV{MINGW_CHOST}/lib)
 endif ()
 
-# A wrapper around find_package() that skips the check if ENABLE_<package> is false
-macro (optional_find_package package)
-  option(ENABLE_${package} "Use ${package} if available" ON)
-  if (ENABLE_${package})
-    find_package(${package} ${ARGN})
-  endif()
-endmacro()
-
 # A wrapper around pkg_check_modules() that skips the check if ENABLE_<prefix> is false
 macro (optional_pkg_check_modules prefix)
   option(ENABLE_${prefix} "Use ${prefix} if available" ON)
@@ -62,7 +54,6 @@ check_symbol_exists(sigaction "signal.h" HAVE_SIGACTION)
 check_symbol_exists(uname "sys/utsname.h" HAVE_UNAME)
 
 if (EMSCRIPTEN)
-  set(FREETYPE_FOUND 1)
   set(HAVE_JPEG 1)
   set(DEFAULT_FONT_PATH /fonts/)
 elseif (VITA)
@@ -73,34 +64,21 @@ elseif (VITA)
   set(SDL2MIXER_FOUND 1)
   set(SDL2TTF_FOUND 1)
 elseif (ANDROID)
-  if (NOT DEFINED ENABLE_MODULES)
-    set(ENABLE_MODULES 1)
-  endif()
   set(SDL2MIXER_FOUND 1)
-  set(SDL2TTF_FOUND 1)
   find_library(ndk_zlib z)
   find_library(ndk_log log)
 else()
-  include(TestBigEndian)
-  TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
-
-  if (NOT DEFINED ENABLE_MODULES)
-    set(ENABLE_MODULES 1)
-  endif()
-
   find_package(ZLIB REQUIRED)
 
-  optional_find_package(GTK2 COMPONENTS gtk)
-  if (GTK2_FOUND)
+  include(FindPkgConfig)
+  optional_pkg_check_modules(GTK3 IMPORTED_TARGET gtk+-3.0)
+  if (GTK3_FOUND)
     set(ENABLE_GTK 1)
   endif()
 
-  optional_find_package(Freetype)
-
-  include(FindPkgConfig)
   pkg_check_modules(SDL2 IMPORTED_TARGET sdl2)
+  pkg_check_modules(SDL2TTF IMPORTED_TARGET SDL2_ttf)
   optional_pkg_check_modules(SDL2MIXER IMPORTED_TARGET SDL2_mixer)
-  optional_pkg_check_modules(SDL2TTF IMPORTED_TARGET SDL2_ttf)
 
   include(FindJPEG)
   if (JPEG_FOUND)
@@ -119,7 +97,7 @@ elseif (ANDROID)
   set(SRC_MENU menu_android.c)
 elseif (VITA)
   set(SRC_MENU menu_ags.c menu_ags_widgets.c)
-elseif (GTK2_FOUND)
+elseif (ENABLE_GTK)
   set(SRC_MENU menu.c menu_callback.c menu_gui.c s39init.c)
 
   # i18n support (currently only menus are translated)
@@ -219,32 +197,8 @@ endif()
 
 # Joystick
 
-if (EMSCRIPTEN OR ANDROID)
-  set(SRC_JOYSTICK joystick_dmy.c)
-else()
-  set(SRC_JOYSTICK joystick_sdl.c)
-  set(SUMMARY_JOYSTICK "SDL")
+if (NOT EMSCRIPTEN AND NOT ANDROID)
   set(HAVE_SDLJOY 1)
-endif()
-
-if (VITA)
-  set(SRC_JOYSTICK ${SRC_JOYSTICK} vita_joystick.c)
-endif()
-
-# Font
-
-if (FREETYPE_FOUND)
-  list(APPEND SRC_FONT font_freetype2.c)
-  list(APPEND SUMMARY_FONT "freetype2")
-  set(ENABLE_FT2 1)
-endif()
-if (SDL2TTF_FOUND)
-  list(APPEND SRC_FONT font_sdlttf.c)
-  list(APPEND SUMMARY_FONT "SDL_ttf")
-  set(ENABLE_SDLTTF 1)
-endif()
-if (NOT SRC_FONT)
-  message(FATAL_ERROR "*** No font device available ***")
 endif()
 
 # TODO: MMX
@@ -263,7 +217,6 @@ message("------------------")
 print_summary(audio ${SUMMARY_AUDIO})
 print_summary(cdrom ${SUMMARY_CDROM})
 print_summary(midi ${SUMMARY_MIDI})
-print_summary(font ${SUMMARY_FONT})
 print_summary(joystick ${SUMMARY_JOYSTICK})
 message("------------------")
 
@@ -278,11 +231,6 @@ add_subdirectory(tools)
 add_subdirectory(fonts)
 if (ENABLE_NLS)
   add_subdirectory(po)
-endif()
-
-if (ENABLE_MODULES)
-  add_subdirectory(modules)
-  target_link_libraries(xsystem35 PRIVATE modules)
 endif()
 
 if (VITA)
@@ -301,3 +249,6 @@ if (VITA)
 	FILE vita/sce_sys/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
 	)
 endif()
+
+add_subdirectory(modules)
+target_link_libraries(xsystem35 PRIVATE modules)

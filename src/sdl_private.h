@@ -30,8 +30,6 @@
 #include "portab.h"
 #include "ags.h"
 
-struct _FONT;
-
 struct sdl_private_data {
 	SDL_Window *window;
 	SDL_Renderer *renderer;
@@ -48,8 +46,6 @@ struct sdl_private_data {
 	
 	SDL_Rect       view;
 	
-	struct _FONT *font;
-
 	boolean dirty;
 
 	boolean ms_active;   /* mouse is active */
@@ -71,8 +67,6 @@ extern void sdl_cursor_init(void);
 extern void sdl_shadow_init(void);
 extern int sdl_nearest_color(int r, int g, int b);
 
-#define SDL_AllocSurface(flags,w,h,d,r,g,b,a) SDL_CreateRGBSurface(0,w,h,d,r,g,b,a)
-
 extern struct sdl_private_data *sdl_videodev;
 
 #define sdl_window (sdl_videodev->window)
@@ -83,7 +77,6 @@ extern struct sdl_private_data *sdl_videodev;
 #define sdl_col (sdl_videodev->col)
 #define sdl_white (sdl_videodev->white)
 #define sdl_dibinfo (sdl_videodev->cimg)
-#define sdl_font (sdl_videodev->font)
 #define sdl_view (sdl_videodev->view)
 #define view_x (sdl_videodev->view.x)
 #define view_y (sdl_videodev->view.y)
@@ -100,8 +93,5 @@ extern struct sdl_private_data *sdl_videodev;
 #define renderscale (sdl_videodev->renderscale)
 #endif
 #define sdl_custom_event_handler (sdl_videodev->custom_event_handler)
-
-#define setRect(r,xx,yy,ww,hh) (r).x=(xx),(r).y=(yy),(r).w=(ww),(r).h=(hh)
-#define setOffset(s,x,y) (s->pixels) + (x) * (s->format->BytesPerPixel) + (y) * s->pitch
 
 #endif /* __SDL_PRIVATE_H__ */

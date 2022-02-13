@@ -147,23 +147,6 @@ static void ChangeNotColor() {
 	dp = GETOFFSET_PIXEL(dib, x0, y0);
 	
 	switch(dib->depth) {
-	case 15:
-	{
-		WORD pic15s = PIX15(*src, *(src+1), *(src+2));
-		WORD pic15d = PIX15(*dst, *(dst+1), *(dst+2));
-		WORD *yl;
-		
-		for (y = 0; y < height; y++) {
-			yl = (WORD *)(dp + y * dib->bytes_per_line);
-			for (x = 0; x < width; x++) {
-				if (*yl != pic15s) {
-					*yl = pic15d;
-				}
-				yl++;
-			}
-		}
-		break;
-	}
 	case 16:
 	{
 		WORD pic16s = PIX16(*src, *(src+1), *(src+2));
@@ -419,8 +402,8 @@ static void SetAnimeRect() {
 	
 	maprect.x = x;
 	maprect.y = y;
-	maprect.width  = w;
-	maprect.height = h;
+	maprect.w = w;
+	maprect.h = h;
 }
 
 static void SetAnimeBack() {
@@ -445,8 +428,8 @@ static void SetAnimeBack() {
 
 	mapback.x = sx;
 	mapback.y = sy;
-	mapback.width  = w;
-	mapback.height = h;
+	mapback.w = w;
+	mapback.h = h;
 	mapback_p5 = p5;
 	mapback_p6 = p6;
 }
@@ -504,9 +487,8 @@ static void PlayAnimeData() {
 				
 				if (!is_backcopied) {
 					is_backcopied = TRUE;
-					ags_copyArea(mapback.x, mapback.y,
-						     mapback.width, mapback.height,
-						     mapback_p5, mapback_p6);
+					ags_copyArea(mapback.x, mapback.y, mapback.w, mapback.h,
+								 mapback_p5, mapback_p6);
 				}
 				
 				if (wavno != 0) {
@@ -558,14 +540,12 @@ static void PlayAnimeData() {
 				// printf("wavPlay %d\n", wavno % 256);
 			}
 		}
-		if (is_backcopied && maprect.width != 0 && maprect.height != 0) {
-			ags_updateArea(maprect.x, maprect.y, maprect.width, maprect.height);
-		}
-		{
-			int now = get_high_counter(SYSTEMCOUNTER_MSEC);
-			if (now - cnt < interval) {
-				sdl_sleep(interval - (now-cnt));
-			}
+		if (is_backcopied && !SDL_RectEmpty(&maprect))
+			ags_updateArea(maprect.x, maprect.y, maprect.w, maprect.h);
+
+		int now = get_high_counter(SYSTEMCOUNTER_MSEC);
+		if (now - cnt < interval) {
+			sdl_sleep(interval - (now-cnt));
 		}
 	}
 }
@@ -586,23 +566,6 @@ static void copy_sprite(int sx, int sy, int width, int height, int dx, int dy, i
 	dp = GETOFFSET_PIXEL(dib, dx, dy);
 	
 	switch(dib->depth) {
-	case 15:
-	{
-		WORD pic15 = PIX15(r, g, b);
-		WORD *yls, *yld;
-		
-		for (y = 0; y < height; y++) {
-			yls = (WORD *)(sp + y * dib->bytes_per_line);
-			yld = (WORD *)(dp + y * dib->bytes_per_line);
-			for (x = 0; x < width; x++) {
-				if (*yls != pic15) {
-					*yld = *yls;
-				}
-				yls++; yld++;
-			}
-		}
-		break;
-	}
 	case 16:
 	{
 		WORD pic16 = PIX16(r, g, b);

@@ -1,7 +1,5 @@
 /*
- * joystick_dmy.h  joystick interface for dummy
- *
- * Copyright (C) 1999- Fumihiko Murata <fmurata@p1.tcnet.ne.jp>
+ * Copyright (C) 2020 <KichikuouChrome@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,24 +15,27 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
-*/
-/* $Id: joystick_dmy.c,v 1.5 2000/11/25 13:09:07 chikama Exp $ */
+ */
 
-#include "joystick.h"
+#ifndef __MSGSKIP_H__
+#define __MSGSKIP_H__
+
 #include "portab.h"
 
-void joy_set_devicename(char *name) {
-	return;
-}
+#define MSGSKIP_SKIP_UNSEEN		1
+#define MSGSKIP_STOP_ON_UNSEEN	2
+#define MSGSKIP_STOP_ON_MENU	4
+#define MSGSKIP_STOP_ON_CLICK	8
 
-int joy_open(void) {
-	return -1;
-}
+extern void msgskip_init(const char *msgskip_file);
+extern boolean msgskip_isSkipping(void);
+extern boolean msgskip_isActivated(void);
+extern void msgskip_enableMenu(boolean enable);
+extern void msgskip_activate(boolean bool);
+extern void msgskip_onMessage(void);
+extern void msgskip_onAinMessage(int msgid);
+extern unsigned msgskip_getFlags();
+extern void msgskip_setFlags(unsigned flags, unsigned mask);
+extern void msgskip_pause(boolean pause);
 
-void joy_close(void) {
-	return;
-}
-
-int joy_getinfo(void) {
-	return 0;
-}
+#endif // __MSGSKIP_H__

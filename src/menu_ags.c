@@ -6,6 +6,7 @@
 #include "portab.h"
 #include "ags.h"
 #include "input.h"
+#include "msgskip.h"
 #include "key.h"
 #include "menu.h"
 #include "menu_ags.h"
@@ -30,14 +31,14 @@ static struct {
 
 static boolean toggle_fullscreen(boolean on)
 {
-	ags_fullscreen(on);
-	return nact->sys_fullscreen_on;
+	sdl_setFullscreen(on);
+	return sdl_isFullscreen();
 }
 
 static boolean toggle_skipmode(boolean on)
 {
-	set_skipMode(on);
-	return get_skipMode();
+	msgskip_activate(on);
+	return msgskip_isSkipping();
 }
 
 static boolean toggle_mousemove(boolean on)
@@ -82,11 +83,11 @@ static struct menu *make_main_menu(void)
 	struct menu *menu = make_menu();
 
 	toggle = make_toggle("Fullscreen", toggle_fullscreen);
-	toggle->on = nact->sys_fullscreen_on;
+	toggle->on = sdl_isFullscreen();
 	menu_append_entry(menu, (struct widget*)toggle);
 
 	toggle = make_toggle("Skip Text", toggle_skipmode);
-	toggle->on = get_skipMode();
+	toggle->on = msgskip_isSkipping();
 	menu_append_entry(menu, (struct widget*)toggle);
 
 	toggle = make_toggle("Mouse Movement", toggle_mousemove);
@@ -274,3 +275,5 @@ void menu_gtkmainiteration() {
 	in_menu = FALSE;
 	return;
 }
+
+void menu_setSkipState(boolean enabled, boolean activated) {}

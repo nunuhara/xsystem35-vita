@@ -29,6 +29,8 @@
 #include "xsystem35.h"
 #include "savedata.h"
 #include "menu.h"
+#include "input.h"
+#include "msgskip.h"
 #include "selection.h"
 #include "message.h"
 #include "music.h"
@@ -500,6 +502,8 @@ void commands2F2A() {
 		sysVar[0] = save_save_str_with_file(fname_utf8, _var, cnt);
 		break;
 	default:
+		_var = getCaliValue();
+		cnt  = getCaliValue();
 		WARNING("Unknown QE command\n");
 		break;
 	}
@@ -807,11 +811,8 @@ void commands2F4C() {
 	int eWidth  = getCaliValue();
 	int eHeight = getCaliValue();
 
-	MyRectangle r;
-	MyPoint p;
-
-	r.x = eSrcX; r.y = eSrcY; r.width = eWidth; r.height = eHeight;
-	p.x = eX, p.y = eY;
+	MyRectangle r = {eSrcX, eSrcY, eWidth, eHeight};
+	MyPoint p = {eX, eY};
 	
 	sdl_updateArea(&r, &p);
 	
@@ -1245,8 +1246,10 @@ void commands2F70() {
 
 void commands2F71() {
 	int eFlag = getCaliValue();
-	
-	DEBUG_COMMAND_YET("wmenuEnableMsgSkip %d:\n", eFlag);
+
+	msgskip_enableMenu(eFlag);
+
+	DEBUG_COMMAND("wmenuEnableMsgSkip %d:\n", eFlag);
 }
 
 void commands2F72() {
@@ -1323,10 +1326,22 @@ void commands2F7B() {
 }
 
 void commands2F7C() {
+	if (!nact->files.ain) {
+		if (nact->files.gr_fname) {
+			SYSERROR("System39.ain is needed to run this game. Make sure you have an \"Ain\" line in %s.\n", nact->files.gr_fname);
+		} else {
+			SYSERROR("Ain file is needed to run this game. Make sure you have System39.ain file in the game directory.\n");
+		}
+	}
+
 	int index = sys_getdw();
-	
+	if (index >= nact->ain.msgnum) {
+		WARNING("message id out of bounds (%d)\n", index);
+		return;
+	}
 	sys_addMsg(nact->ain.msg[index]);
-	
+	msgskip_onAinMessage(index);
+
 	DEBUG_COMMAND("2F7C %d:\n", index);
 }
 
@@ -1334,7 +1349,8 @@ void commands2F7D() {
 	int index = sys_getdw();
 	
 	commandH();
-	
+	msgskip_onAinMessage(index);
+
 	DEBUG_COMMAND("2F7D %d:\n", index);
 }
 
@@ -1342,7 +1358,8 @@ void commands2F7E() {
 	int index = sys_getdw();
 	
 	commandHH();
-	
+	msgskip_onAinMessage(index);
+
 	DEBUG_COMMAND("2F7E %d:\n", index);
 }
 
@@ -1351,8 +1368,9 @@ void commands2F7F() {
 	int p1    = sys_getCaliValue();
 	
 	sys_addMsg(svar_get(p1));
-	
-	DEBUG_COMMAND("2F7F %d, %d(%s,%s):\n", index, p1, nact->ain.msg[index], svar_get(p1));
+	msgskip_onAinMessage(index);
+
+	DEBUG_COMMAND("2F7F %d, %d(%s):\n", index, p1, svar_get(p1));
 }
 
 void commands2F80() {
