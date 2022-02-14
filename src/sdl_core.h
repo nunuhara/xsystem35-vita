@@ -29,6 +29,7 @@
 #include "portab.h"
 #include "ags.h"
 #include "cursor.h"
+#include "effect.h"
 
 struct inputstring_param;
 
@@ -38,16 +39,18 @@ extern void sdl_Remove(void);
 
 /* ウィンド関係 */
 extern void sdl_setWorldSize(int width, int height, int depth);
-extern void sdl_setWindowSize(int x, int y, int w, int h);
+extern void sdl_setWindowSize(int w, int h);
 extern void sdl_setWindowTitle(char *name);
 extern void sdl_getWindowInfo(DispInfo *info);
 extern void sdl_setFullscreen(boolean on);
 extern boolean sdl_isFullscreen(void);
+extern void sdl_raiseWindow(void);
 extern agsurface_t *sdl_getDIB(void);
 extern void sdl_setIntegerScaling(boolean enable);
 
 /* 画面更新 */
 extern void sdl_updateArea(MyRectangle *src, MyPoint *dst);
+extern void sdl_updateAll(MyRectangle *view_rect);
 extern void sdl_updateScreen(void);
 
 /* パレット関係 */
@@ -56,22 +59,19 @@ extern void sdl_setPalette(Palette256 *pal, int src, int cnt);
 /* 描画関係 */
 extern void sdl_drawRectangle(int x, int y, int w, int h, BYTE c);
 extern void sdl_fillRectangle(int x, int y, int w, int h, BYTE c);
+extern void sdl_fillRectangleRGB(int x, int y, int w, int h, BYTE r, BYTE g, BYTE b);
 extern void sdl_drawLine(int x1, int y1, int x2, int y2, BYTE c);
 extern SDL_Rect sdl_floodFill(int x, int y, int col);
 extern SDL_Rect sdl_drawString(int x, int y, const char *str_utf8, BYTE col);
 extern void sdl_copyArea(int sx,int sy, int w, int h, int dx, int dy);
-extern void sdl_drawTT(int x,int y,int w,int h,const char *bitmap,int ww, boolean antialiased);
 extern void sdl_copyAreaSP(int sx, int sy, int w, int h, int dx, int dy, BYTE sp);
 extern void sdl_drawImage8_fromData(cgdata *cg, int x, int y, int w, int h);
-extern void sdl_Mosaic(int sx, int sy, int w, int h, int dx, int dy, int slice);
 extern void sdl_wrapColor(int sx, int sy, int w, int h, BYTE cl, int rate);
 extern void sdl_scaledCopyArea(int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, int mirror);
-extern void sdl_zoom(int x, int y, int w, int h);
 extern void sdl_drawImage16_fromData(cgdata *cg, int x, int y, int w, int h);
 extern void sdl_copyAreaSP16_shadow(int sx, int sy, int w, int h, int dx, int dy, int lv);
 extern void sdl_copyAreaSP16_alphaBlend(int sx, int sy, int w, int h, int dx, int dy, int lv);
 extern void sdl_copyAreaSP16_alphaLevel(int sx, int sy, int w, int h, int dx, int dy, int lv);
-extern void sdl_copyAreaSP16_whiteLevel(int sx, int sy, int w, int h, int dx, int dy, int lv);
 extern void sdl_copy_from_alpha(int sx, int sy, int w, int h, int dx, int dy, ALPHA_DIB_COPY_TYPE flag);
 extern void sdl_copy_to_alpha(int sx, int sy, int w, int h, int dx, int dy, ALPHA_DIB_COPY_TYPE flag);
 extern void sdl_getPixel(int x, int y, Palette *cell);
@@ -80,14 +80,14 @@ extern void sdl_CopyRegion(void *src, int sx, int sy, int w, int h, int dx, int 
 extern void sdl_restoreRegion(void *src, int x, int y);
 extern void* sdl_saveRegion(int x, int y, int w, int h);
 extern void sdl_delRegion(void *src);
-extern void sdl_maskupdate(int sx, int sy, int w, int h, int dx, int dy, int func, int step);
 extern SDL_Surface *com2surface(agsurface_t *s);
 
-/* fader */
-extern void sdl_fadeIn(int step);
-extern void sdl_fadeOut(int step);
-extern void sdl_whiteIn(int step);
-extern void sdl_whiteOut(int step);
+/* Effects */
+struct sdl_effect;
+struct sdl_effect *sdl_effect_init(SDL_Rect *rect, agsurface_t *old, int ox, int oy, agsurface_t *new, int nx, int ny, enum sdl_effect_type effect);
+struct sdl_effect *sdl_effect_magnify_init(agsurface_t *surface, SDL_Rect *view_rect, SDL_Rect *target_rect);
+void sdl_effect_step(struct sdl_effect *eff, double progress);
+void sdl_effect_finish(struct sdl_effect *eff);
 
 /* key/pointer 関係 */
 extern void sdl_setJoyDeviceIndex(int index);

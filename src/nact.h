@@ -61,7 +61,6 @@ typedef struct {
 	boolean   is_cursor_animation; /* animation cursor working */
 	boolean   is_message_locked;   /* pointer 等の event handler を呼び出さない */
 	boolean   popupmenu_opened;    /* popup menu が 開いているか */
-	boolean   mmx_is_ok;           /* MMX が有効かどうか */
 	CharacterEncoding encoding;
 	
 	char      *game_title_utf8;
@@ -72,18 +71,6 @@ typedef struct {
 	void *datatbl_addr; /* データテーブルのアドレス */
 	int fnc_return_value; /* 関数の戻り値として返す値 (~0,cali:で渡す値) */
 	
-	/* ags info */
-	Palette256 *sys_pal;
-	boolean     sys_pal_changed;
-	MyRectangle sys_view_area;
-	MyDimension sys_world_size;
-	int         sys_world_depth;
-	int         sys_mouse_movesw; /* 0:IZを無視, 1: 直接指定場所へ, 2: スムーズに指定場所に */
-
-	/* for fader/ecopy */
-	int     effect_rate;
-	int     effect_step; /* 0 to 255 , 0 と 255 は必ず通る*/
-
 	/* key wait */
 	int     waittime;
 	int     waitcancel_key;
@@ -99,8 +86,6 @@ typedef struct {
 	
 	/* ags */
 	ags_t ags;
-	boolean noantialias; /* antialias を使用しない */
-	boolean noimagecursor; /* リソースファイルのカーソルを読みこまない */
 	
 	/* メッセージ関連 */
 	msg_t msg;

@@ -40,11 +40,10 @@ struct sdl_private_data {
 	
 	SDL_Color       col[256]; /* color palette */
 	
-	unsigned long       white; /* white pixel */
-	
 	agsurface_t *cimg;
 	
-	SDL_Rect       view;
+	int     view_w;
+	int     view_h;
 	
 	boolean dirty;
 
@@ -52,8 +51,6 @@ struct sdl_private_data {
 
 	boolean fs_on;
 
-	int      winoffset_x; /* draw offset in Window x */
-	int      winoffset_y; /*                       y */
 #ifdef VITA
 	int renderoffset_x;
 	int renderoffset_y;
@@ -63,9 +60,10 @@ struct sdl_private_data {
 	boolean (*custom_event_handler)(const SDL_Event *);
 };
 
-extern void sdl_cursor_init(void);
-extern void sdl_shadow_init(void);
-extern int sdl_nearest_color(int r, int g, int b);
+void sdl_cursor_init(void);
+void sdl_shadow_init(void);
+int sdl_nearest_color(int r, int g, int b);
+boolean sdl_joy_open(int index);
 
 extern struct sdl_private_data *sdl_videodev;
 
@@ -75,18 +73,12 @@ extern struct sdl_private_data *sdl_videodev;
 #define sdl_display (sdl_videodev->dsp)
 #define sdl_dib (sdl_videodev->dib)
 #define sdl_col (sdl_videodev->col)
-#define sdl_white (sdl_videodev->white)
 #define sdl_dibinfo (sdl_videodev->cimg)
-#define sdl_view (sdl_videodev->view)
-#define view_x (sdl_videodev->view.x)
-#define view_y (sdl_videodev->view.y)
-#define view_w (sdl_videodev->view.w)
-#define view_h (sdl_videodev->view.h)
+#define view_w (sdl_videodev->view_w)
+#define view_h (sdl_videodev->view_h)
 #define sdl_dirty (sdl_videodev->dirty)
 #define ms_active (sdl_videodev->ms_active)
 #define sdl_fs_on (sdl_videodev->fs_on)
-#define winoffset_x (sdl_videodev->winoffset_x)
-#define winoffset_y (sdl_videodev->winoffset_y)
 #ifdef VITA
 #define renderoffset_x (sdl_videodev->renderoffset_x)
 #define renderoffset_y (sdl_videodev->renderoffset_y)

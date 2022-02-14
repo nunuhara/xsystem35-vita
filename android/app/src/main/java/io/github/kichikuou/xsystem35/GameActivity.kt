@@ -42,7 +42,7 @@ class GameActivity : SDLActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        gameRoot = File(intent.getStringExtra(EXTRA_GAME_ROOT))
+        gameRoot = File(intent.getStringExtra(EXTRA_GAME_ROOT)!!)
         cdda = CddaPlayer(File(gameRoot, Launcher.PLAYLIST_FILE))
     }
 
@@ -59,11 +59,11 @@ class GameActivity : SDLActivity() {
     }
 
     override fun getLibraries(): Array<String> {
-        return arrayOf("hidapi", "SDL2", "xsystem35")
+        return arrayOf("SDL2", "xsystem35")
     }
 
     override fun getArguments(): Array<String> {
-        return arrayOf("-gamedir", intent.getStringExtra(EXTRA_GAME_ROOT))
+        return arrayOf("-gamedir", intent.getStringExtra(EXTRA_GAME_ROOT)!!)
     }
 
     override fun setTitle(title: CharSequence?) {
@@ -162,7 +162,7 @@ private class CddaPlayer(private val playlistPath: File) {
             playlistPath.readLines()
         } catch (e: IOException) {
             Log.e("loadPlaylist", "Cannot load $playlistPath", e)
-            emptyList<String>()
+            emptyList()
         }
     private var currentTrack = 0
     private val player = MediaPlayer()

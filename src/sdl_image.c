@@ -39,11 +39,13 @@ static unsigned char shlv_tbl[256*256];
 /*
  * dib内での拡大・縮小コピー
  */
-static void sdl_scaledCopyAreaInternal(SDL_Surface *src, SDL_Surface *dst, int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, int mirror) {
+void sdl_scaledCopyArea(int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, int mirror) {
 	float    a1, a2, xd, yd;
 	int      *row, *col;
 	int      x, y;
 	SDL_Surface *ss;
+	SDL_Surface *src = sdl_dib;
+	SDL_Surface *dst = sdl_dib;
 	
 	ss = SDL_CreateRGBSurface(0, dw, dh, dst->format->BitsPerPixel, 0, 0, 0, 0);
 	
@@ -134,15 +136,6 @@ static void sdl_scaledCopyAreaInternal(SDL_Surface *src, SDL_Surface *dst, int s
 	
 	free(row);
 	free(col);
-}
-
-void sdl_scaledCopyArea(int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, int mirror) {
-	sdl_scaledCopyAreaInternal(sdl_dib, sdl_dib, sx, sy, sw, sh, dx, dy, dw, dh, mirror);
-}
-
-void sdl_zoom(int x, int y, int w, int h) {
-	sdl_scaledCopyAreaInternal(sdl_dib, sdl_display, x, y, w, h, 0, 0, view_w, view_h, 0);
-	sdl_dirty = TRUE;
 }
 
 
@@ -295,18 +288,15 @@ void sdl_copyAreaSP16_alphaBlend(int sx, int sy, int w, int h, int dx, int dy, i
 	SDL_SetSurfaceBlendMode(sdl_dib, SDL_BLENDMODE_NONE);
 }
 
-#define copyAreaSP_level(fn, cn, v) void sdl_copyAreaSP16_##fn(int sx, int sy, int w, int h, int dx, int dy, int lv) { \
-	SDL_Rect r_src = {sx, sy, w, h};	   \
-	SDL_Rect r_dst = {dx, dy, w, h};					   \
-	SDL_SetSurfaceBlendMode(sdl_dib, SDL_BLENDMODE_BLEND); \
-	SDL_SetSurfaceAlphaMod(sdl_dib, v); \
-	SDL_FillRect(sdl_dib, &r_dst, cn); \
-	SDL_BlitSurface(sdl_dib, &r_src, sdl_dib, &r_dst); \
-	SDL_SetSurfaceBlendMode(sdl_dib, SDL_BLENDMODE_NONE); \
+void sdl_copyAreaSP16_alphaLevel(int sx, int sy, int w, int h, int dx, int dy, int lv) {
+	SDL_Rect r_src = {sx, sy, w, h};
+	SDL_Rect r_dst = {dx, dy, w, h};
+	SDL_SetSurfaceBlendMode(sdl_dib, SDL_BLENDMODE_BLEND);
+	SDL_SetSurfaceAlphaMod(sdl_dib, lv);
+	SDL_FillRect(sdl_dib, &r_dst, 0);
+	SDL_BlitSurface(sdl_dib, &r_src, sdl_dib, &r_dst);
+	SDL_SetSurfaceBlendMode(sdl_dib, SDL_BLENDMODE_NONE);
 }
-
-copyAreaSP_level(alphaLevel, 0, lv);
-copyAreaSP_level(whiteLevel, sdl_white, 255 - lv);
 
 void sdl_copy_from_alpha(int sx, int sy, int w, int h, int dx, int dy, ALPHA_DIB_COPY_TYPE flag) {
 	SDL_LockSurface(sdl_dib);

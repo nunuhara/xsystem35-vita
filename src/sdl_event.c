@@ -47,10 +47,8 @@ static void keyEventProsess(SDL_KeyboardEvent *e, boolean pressed);
 int mousex, mousey, mouseb;
 boolean RawKeyInfo[256];
 
-#if HAVE_SDLJOY
 /* SDL Joystick */
 static int joyinfo=0;
-#endif
 
 /*
  * Translate touch screen coordinates to logical coordinates.
@@ -252,7 +250,10 @@ static void sdl_getEvent(void) {
 			vita_joystick_event(&e);
 			break;
 #else
-#if HAVE_SDLJOY
+		case SDL_JOYDEVICEADDED:
+			sdl_joy_open(e.jdevice.which);
+			break;
+
 		case SDL_JOYAXISMOTION:
 			if (abs(e.jaxis.value) < 0x4000) {
 				joyinfo &= e.jaxis.axis == 0 ? ~0xc : ~3;
@@ -262,10 +263,24 @@ static void sdl_getEvent(void) {
 				joyinfo |= 1 << i;
 			}
 			break;
+
 		case SDL_JOYBALLMOTION:
 			break;
+
 		case SDL_JOYHATMOTION:
+			joyinfo &= ~(SYS35KEY_UP | SYS35KEY_DOWN | SYS35KEY_LEFT | SYS35KEY_RIGHT);
+			switch (e.jhat.value) {
+			case SDL_HAT_UP:        joyinfo |= SYS35KEY_UP;    break;
+			case SDL_HAT_DOWN:      joyinfo |= SYS35KEY_DOWN;  break;
+			case SDL_HAT_LEFT:      joyinfo |= SYS35KEY_LEFT;  break;
+			case SDL_HAT_RIGHT:     joyinfo |= SYS35KEY_RIGHT; break;
+			case SDL_HAT_LEFTUP:    joyinfo |= SYS35KEY_LEFT  | SYS35KEY_UP;   break;
+			case SDL_HAT_RIGHTUP:   joyinfo |= SYS35KEY_RIGHT | SYS35KEY_UP;   break;
+			case SDL_HAT_LEFTDOWN:  joyinfo |= SYS35KEY_LEFT  | SYS35KEY_DOWN; break;
+			case SDL_HAT_RIGHTDOWN: joyinfo |= SYS35KEY_RIGHT | SYS35KEY_DOWN; break;
+			}
 			break;
+
 		case SDL_JOYBUTTONDOWN:
 		case SDL_JOYBUTTONUP:
 			if (e.jbutton.button < 4) {
@@ -279,7 +294,6 @@ static void sdl_getEvent(void) {
 				}
 			}
 			break;
-#endif // HAVE_SDLJOY
 #endif // VITA
 		default:
 			NOTICE("ev %x\n", e.type);
@@ -334,8 +348,8 @@ int sdl_getMouseInfo(MyPoint *p) {
 	}
 	
 	if (p) {
-		p->x = mousex - winoffset_x;
-		p->y = mousey - winoffset_y;
+		p->x = mousex;
+		p->y = mousey;
 	}
 
 	int m1 = mouseb & (1 << 1) ? SYS35KEY_RET : 0;
@@ -344,10 +358,6 @@ int sdl_getMouseInfo(MyPoint *p) {
 }
 
 int sdl_getJoyInfo(void) {
-#ifdef HAVE_SDLJOY
 	sdl_getEvent();
 	return joyinfo;
-#else
-	return 0;
-#endif
 }

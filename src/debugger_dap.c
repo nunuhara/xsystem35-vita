@@ -31,6 +31,7 @@
 #include "debugger_private.h"
 #include "debug_symbol.h"
 #include "msgqueue.h"
+#include "sdl_core.h"
 #include "system.h"
 #include "nact.h"
 #include "variable.h"
@@ -81,10 +82,14 @@ static void emit_initialized_event(void) {
 	send_json(event);
 }
 
-static void emit_terminated_event(void) {
-	cJSON *event = cJSON_CreateObject();
+static void emit_terminated_event(bool restart) {
+	cJSON *event = cJSON_CreateObject(), *body;
 	cJSON_AddStringToObject(event, "type", "event");
 	cJSON_AddStringToObject(event, "event", "terminated");
+	if (restart) {
+		cJSON_AddItemToObjectCS(event, "body", body = cJSON_CreateObject());
+		cJSON_AddBoolToObject(body, "restart", true);
+	}
 	send_json(event);
 }
 
@@ -294,6 +299,7 @@ static void cmd_evaluate(cJSON *args, cJSON *resp) {
 }
 
 static void cmd_continue(cJSON *args, cJSON *resp) {
+	sdl_raiseWindow();
 	cJSON_AddBoolToObject(resp, "success", true);
 }
 
@@ -584,8 +590,10 @@ static void dbg_dap_init(const char *path) {
 	}
 }
 
-static void dbg_dap_quit(void) {
-	emit_terminated_event();
+static void dbg_dap_quit(bool restart) {
+	emit_terminated_event(restart);
+	if (restart)
+		exit(0); // The front end will restart xsystem35, so we can just exit.
 }
 
 static void dbg_dap_repl(void) {

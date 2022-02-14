@@ -43,7 +43,7 @@ static boolean toggle_skipmode(boolean on)
 
 static boolean toggle_mousemove(boolean on)
 {
-	nact->sys_mouse_movesw = on ? 2 : 0;
+	nact->ags.mouse_movesw = on ? 2 : 0;
 	return !!on;
 }
 
@@ -91,7 +91,7 @@ static struct menu *make_main_menu(void)
 	menu_append_entry(menu, (struct widget*)toggle);
 
 	toggle = make_toggle("Mouse Movement", toggle_mousemove);
-	toggle->on = nact->sys_mouse_movesw;
+	toggle->on = nact->ags.mouse_movesw;
 	menu_append_entry(menu, (struct widget*)toggle);
 
 	menu_append_entry(menu, (struct widget*)make_label (CHAR_RARROW " Quit", show_quit_dialog));
@@ -107,9 +107,9 @@ static int find_nearest_color(int r, int g, int b)
 	int nearest_diff = INT_MAX;
 	for (int i = 0; i < 256; i++) {
 		int diff = 0;
-		diff += abs(nact->sys_pal->red[i] - r);
-		diff += abs(nact->sys_pal->green[i] - g);
-		diff += abs(nact->sys_pal->blue[i] - b);
+		diff += abs(nact->ags.pal->red[i] - r);
+		diff += abs(nact->ags.pal->green[i] - g);
+		diff += abs(nact->ags.pal->blue[i] - b);
 		if (diff < nearest_diff) {
 			nearest = i;
 			nearest_diff = diff;

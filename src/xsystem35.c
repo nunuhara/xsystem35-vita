@@ -76,10 +76,6 @@
 #include "s39init.h"
 #include "msgskip.h"
 
-#ifdef ENABLE_MMX
-#include "haveunit.h"
-#endif
-
 static char *gameResourceFile = "xsystem35.gr";
 static void    sys35_usage(boolean verbose);
 static void    sys35_init();
@@ -234,14 +230,10 @@ static void sys35_init() {
 		font_set_name_and_index(i, fontname_tt[i], fontface[i]);
 	
 	sdl_setFullscreen(fs_on);
-	nact->noantialias = font_noantialias;
+	nact->ags.noantialias = font_noantialias;
 	ags_setAntialiasedStringMode(!font_noantialias);
 
 	sgenrand(getpid());
-
-#ifdef ENABLE_MMX
-	nact->mmx_is_ok = ((haveUNIT() & tMMX) ? TRUE : FALSE);
-#endif
 
 	msg_init();
 	sel_init();
@@ -252,7 +244,7 @@ static void sys35_init() {
 }
 
 static void sys35_remove() {
-	dbg_quit();
+	dbg_quit(false);
 	mus_exit(); 
 	ags_remove();
 #ifdef ENABLE_GTK
@@ -266,7 +258,7 @@ void sys_reset() {
 #ifdef ENABLE_GTK
 	s39ini_remove();
 #endif
-	
+	dbg_quit(true);  // This may exit().
 	execvp(saved_argv[0], saved_argv);
 	sys_error("exec fail");
 }
@@ -329,7 +321,7 @@ static void sys35_ParseOption(int *argc, char **argv) {
 				fontname_tt[FONT_MINCHO] = argv[i + 1];
 			}
 		} else if (0 == strcmp(argv[i], "-noimagecursor")) {
-			nact->noimagecursor = TRUE;
+			nact->ags.noimagecursor = TRUE;
 		} else if (0 == strcmp(argv[i], "-debuglv")) {
 			if (argv[i + 1] != NULL) {
 				debuglv = argv[i + 1][0] - '0';
@@ -407,7 +399,7 @@ static void check_profile() {
 	param = get_profile("no_imagecursor");
 	if (param) {
 		if (0 == strcmp(param, "Yes")) {
-			nact->noimagecursor = TRUE;
+			nact->ags.noimagecursor = TRUE;
 		}
 	}
 	param = get_profile("fullscreen");
