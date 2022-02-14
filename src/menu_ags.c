@@ -29,12 +29,6 @@ static struct {
 	void (*eventcb)(agsevent_t*);
 } saved;
 
-static boolean toggle_fullscreen(boolean on)
-{
-	sdl_setFullscreen(on);
-	return sdl_isFullscreen();
-}
-
 static boolean toggle_skipmode(boolean on)
 {
 	msgskip_activate(on);
@@ -81,10 +75,6 @@ static struct menu *make_main_menu(void)
 {
 	struct toggle *toggle;
 	struct menu *menu = make_menu();
-
-	toggle = make_toggle("Fullscreen", toggle_fullscreen);
-	toggle->on = sdl_isFullscreen();
-	menu_append_entry(menu, (struct widget*)toggle);
 
 	toggle = make_toggle("Skip Text", toggle_skipmode);
 	toggle->on = msgskip_isSkipping();

@@ -402,10 +402,11 @@ static void check_profile() {
 			nact->ags.noimagecursor = TRUE;
 		}
 	}
-	param = get_profile("fullscreen");
+	/* enable integer scaling */
+	param = get_profile("integerscale");
 	if (param) {
 		if (0 == strcmp(param, "Yes")) {
-			fs_on = TRUE;
+			sdl_setIntegerScaling(TRUE);
 		}
 	}
 #ifdef VITA
@@ -458,13 +459,6 @@ static void check_profile() {
 		vita_joystick_map(VITA_START, param);
 	}
 #endif
-	/* enable integer scaling */
-	param = get_profile("integerscale");
-	if (param) {
-		if (0 == strcmp(param, "Yes")) {
-			sdl_setIntegerScaling(TRUE);
-		}
-	}
 }
 
 #ifdef HAVE_SIGACTION

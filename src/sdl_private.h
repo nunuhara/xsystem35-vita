@@ -51,12 +51,6 @@ struct sdl_private_data {
 
 	boolean fs_on;
 
-#ifdef VITA
-	int renderoffset_x;
-	int renderoffset_y;
-	float renderscale;
-#endif
-
 	boolean (*custom_event_handler)(const SDL_Event *);
 };
 
@@ -79,11 +73,6 @@ extern struct sdl_private_data *sdl_videodev;
 #define sdl_dirty (sdl_videodev->dirty)
 #define ms_active (sdl_videodev->ms_active)
 #define sdl_fs_on (sdl_videodev->fs_on)
-#ifdef VITA
-#define renderoffset_x (sdl_videodev->renderoffset_x)
-#define renderoffset_y (sdl_videodev->renderoffset_y)
-#define renderscale (sdl_videodev->renderscale)
-#endif
 #define sdl_custom_event_handler (sdl_videodev->custom_event_handler)
 
 #endif /* __SDL_PRIVATE_H__ */

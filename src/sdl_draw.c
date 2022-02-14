@@ -93,12 +93,12 @@ static void render_sw_cursor(void)
 	memcpy(cursor_buf, sw_cursor, sizeof(cursor_buf));
 	memcpy(outline_buf, sw_cursor_outline, sizeof(outline_buf));
 	for (int i = 0; i < 11; i++) {
-		cursor_buf[i].x += renderoffset_x + mousex*renderscale;
-		cursor_buf[i].y += renderoffset_y + mousey*renderscale;
+		cursor_buf[i].x += mousex;
+		cursor_buf[i].y += mousey;
 	}
 	for (int i = 0; i < 8; i++) {
-		outline_buf[i].x += renderoffset_x + mousex*renderscale;
-		outline_buf[i].y += renderoffset_y + mousey*renderscale;
+		outline_buf[i].x += mousex;
+		outline_buf[i].y += mousey;
 	}
 	SDL_SetRenderDrawColor(sdl_renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
 	SDL_RenderFillRects(sdl_renderer, cursor_buf, 11);
@@ -138,8 +138,7 @@ void sdl_updateScreen(void)
 		return;
 	SDL_UpdateTexture(sdl_texture, NULL, sdl_display->pixels, sdl_display->pitch);
 	SDL_RenderClear(sdl_renderer);
-	SDL_Rect dst = {renderoffset_x, renderoffset_y, view_w*renderscale, view_h*renderscale};
-	SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, &dst);
+	SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
 	if (!hide_cursor)
 		render_sw_cursor();
 	SDL_RenderPresent(sdl_renderer);

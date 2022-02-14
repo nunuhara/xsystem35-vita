@@ -55,17 +55,8 @@ static int joyinfo=0;
  * Returns true IFF the touch location is within the display bounds.
  */
 static boolean touch_location(SDL_Event *e, int *x, int *y) {
-#ifdef VITA
-	int _x = (e->tfinger.x*VITA_W - renderoffset_x) * (1/renderscale);
-	int _y = (e->tfinger.y*VITA_H - renderoffset_y) * (1/renderscale);
-	if (_x < 0 || _y < 0 || _x >= view_w || _y >= view_h)
-		return FALSE;
-	*x = _x;
-	*y = _y;
-#else
 	*x = e->tfinger.x * view_w;
 	*y = e->tfinger.y * view_h;
-#endif
 	return TRUE;
 }
 
